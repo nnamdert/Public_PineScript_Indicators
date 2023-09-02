@@ -1,0 +1,575 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+indicator("GRIDBOT Scalper", overlay = true, max_lines_count = 500)
+
+//BEGIN SCRIPT 
+//Begin Settings Box============================================================================================================//
+easy_settings = input.bool(true, title='Show Easy Access Settngs Tool on Chart?', group = 'Settings Tool')                      // 
+settings_location_bottom_right = input.bool(                                                                                    //
+ defval = false,                                                                                                                //
+ title = 'Move Settings Tool to Bottom Right?',                                                                                 //
+ group = 'Settings Tool')                                                                                                       //
+ ? position.bottom_right : position.middle_right                                                                                //
+if easy_settings == true                                                                                                        //
+    var table settings_tool = table.new(settings_location_bottom_right, 1, 1, frame_color = color.black, frame_width = 0)     //
+    table.cell(settings_tool, 0, 0, text_size = size.small,                                                                     //
+     text = "⚙️",                                                                                                               //
+     tooltip='Double Click to Access Settings',                                                                                 // 
+//Questions regarding this indicator or need training?  https://discord.com/invite/nZfY854MXR                                   //
+     text_color = color.black, bgcolor = color.new(color.orange, 100))                                                      //
+//End Settings Box==============================================================================================================//
+//HANDLES MAX_LINES_COUNTS ISSUE================================================================================================//
+lineLimitInput = input.int(                                                                                                     //
+ defval = 30,                                                                                                                   //
+ title = 'Max Lines to Show',                                                                                                   // 
+ tooltip = 'Adjust this number to increase or decrease the total number of lines seen on the chart. (ONLY this indicator)',     //
+ group = 'Line Settings'                                                                                                        //
+ )                                                                                                                              //
+if array.size(line.all) > lineLimitInput                                                                                        //
+    for i = 0 to array.size(line.all) - lineLimitInput - 1                                                                      //
+        line.delete(array.get(line.all, i))                                                                                     //
+//END MAX_LINES_COUNTS ISSUE====================================================================================================//
+//BEGIN Get User Inputs=========================================================================================================//
+//BEGIN LINE SETTINGS                                                                                                           //
+extend_lines = input.bool(                                                                                                      //
+ defval = false,                                                                                                                //
+ title = 'Extend Lines to the right?',                                                                                          //
+ tooltip = 'Checking this box will extend the current lines on the chart to the right',                                         //
+ group = 'Line Settings'                                                                                                        //
+ ) ? extend.right : extend.none                                                                                                 // 
+use_low_bullish = input.bool(                                                                                                   //
+ defval = false,                                                                                                                //
+ title = 'Use Low for Bullish Reversal Support Line?',                                                                          //
+ tooltip = 'The default for the support line is the close of the candle, this setting changes it to the candle Low (wick)',     //
+ group = 'Line Settings'                                                                                                        //
+ ) ? low : close                                                                                                                //
+use_high_bearish = input.bool(                                                                                                  //
+ defval = false,                                                                                                                //
+ title = 'Use High for Bearish Reversal Resistance Line?',                                                                      //
+ tooltip = 'The default for the resistance line is the close of the candle, this setting changes it to the candle High (wick)', //
+ group = 'Line Settings'                                                                                                        //
+ ) ? high : close                                                                                                               //
+//END LINE SETTINGS                                                                                                             //
+showlabel = input.bool(true, title='Show Alerts Box', group = ' Alert Box')                                                     //
+only_bearish = input.bool(                                                                                                      //
+ defval = false,                                                                                                                //
+ title = ' Show only Bearish Labels on Chart',                                                                                  //
+ tooltip = 'checking this box will hide Bullish Reversal and only show Bearish Reversals',                                      //
+ group = 'Signal Label Settings'                                                                                                //
+ )                                                                                                                              // 
+only_bullish = input.bool(                                                                                                      //
+ defval = false,                                                                                                                //
+ title = ' Show only Bullish Labels on Chart',                                                                                  //
+ tooltip = 'checking this box will hide Bearish Reversal and only show Bullish Reversals',                                      //
+ group = 'Signal Label Settings'                                                                                                //
+ )                                                                                                                              // 
+//END Get User Inputs===========================================================================================================//
+//BEGIN OPTIONAL PRICE LABEL SCRIPT=============================================================================================//
+var priceArray = array.new_float(0)                                                                                             //
+array.push(priceArray, close)                                                                                                   //
+size = array.size(priceArray)                                                                                                   //
+price = array.get(priceArray, size -1)                                                                                          //
+//BEGIN USER INPUT FOR OPTIONAL PRICE LABEL                                                                                     //
+show_price_label = input.bool(                                                                                                  //
+ defval = true,                                                                                                                 //
+ title = ' Show Price Label on Chart',                                                                                          //
+ tooltip = 'Unchecking this box will hide the optional price label from the chart',                                             //
+ group = "Price Label Settings"                                                                                                 //
+ )                                                                                                                              //
+//END USER INPUT FOR OPTIONAL PRICE LABEL                                                                                       //
+//BEGIN LABEL script for OPTIONAL PRICE LABEL                                                                                   //
+label pricelabel = na                                                                                                           //
+if barstate.islast and show_price_label                                                                                         //
+    pricelabel := label.new(bar_index,                                                                                          //
+     y=0,                                                                                                                       //
+     yloc=yloc.abovebar,                                                                                                        //
+     color = color.new(color.yellow, 0),                                                                                      //
+     style = label.style_none,                                                                                                  //
+     text="Price:\n " + str.tostring(array.get(priceArray, size -1)),                                                           //
+     textcolor = color.new(color.orange, 0))                                                                                  //
+    label.delete(pricelabel[1])                                                                                                 //
+//END LABEL script for OPTIONAL PRICE LABEL                                                                                     //
+//END OPTIONAL PRICE LABEL SCRIPT===============================================================================================//
+//BEGIN Definitions=============================================================================================================//                                                              
+bullish_break =                                                                                                                 //
+ price > high[1]                                                                                                                //
+ and price > high[2]                                                                                                            //
+ and price > high[3]                                                                                                            //
+ and price > high[4]                                                                                                            // 
+ and price > high[5]                                                                                                            //
+ and price > high[6]                                                                                                            //
+ and price > high[7]                                                                                                            //
+ and price > high[8]                                                                                                            //
+ and price > high[9]                                                                                                            //                  
+ and price > high[10]                                                                                                           //
+ and price > high[11]                                                                                                           //
+ and price > high[12]                                                                                                           //
+ and price > high[13]                                                                                                           //
+ and price > high[14]                                                                                                           //
+//                                                                                                                              //
+bearish_break =                                                                                                                 // 
+ price < low[1]                                                                                                                 //
+ and price < low[2]                                                                                                             //
+ and price < low[3]                                                                                                             //
+ and price < low[4]                                                                                                             //
+ and price < low[5]                                                                                                             //
+ and price < low[6]                                                                                                             //
+ and price < low[7]                                                                                                             //
+ and price < low[8]                                                                                                             //
+ and price < low[9]                                                                                                             //
+ and price < low[10]                                                                                                            //
+ and price < low[11]                                                                                                            //
+ and price < low[11]                                                                                                            //
+ and price < low[12]                                                                                                            //
+ and price < low[13]                                                                                                            //
+ and price < low[14]                                                                                                            //
+//                                                                                                                              //
+//BEGIN RSI---------------------------------------------------------------------------------------------------------------------//                                                                                                                                                                     
+// Get user input                                                                                                               //
+use_rsi_confirmation = input.bool(                                                                                              //
+ defval = false,                                                                                                                //
+ title = 'Use RSI Signals to Confirm Reversals?',                                                                               //
+ tooltip = 'Checking this box will require the indicator to use RSI settings before a signal is triggered.',                    //
+ group = 'RSI SETTINGS')                                                                                                        //
+showrsi = input.bool(                                                                                                           //
+ defval = false,                                                                                                                //
+ title = 'Plot RSI Signals on Chart',                                                                                           //
+ group='RSI SETTINGS')                                                                                                          //
+showoverbtrsi = input.bool(                                                                                                     // 
+ defval = true,                                                                                                                 //
+ title = 'Show Overbought RSI Signals',                                                                                         //
+ group='RSI SETTINGS')                                                                                                          //
+showoversldrsi = input.bool(                                                                                                    //
+ defval = true,                                                                                                                 //
+ title = 'Show Oversold RSI Signals',                                                                                           //
+ group='RSI SETTINGS')                                                                                                          //                                                                                                                                 
+rsiSource = input(                                                                                                              //
+ title = 'RSI Source',                                                                                                          //
+ defval = close,                                                                                                                //
+ group ='RSI SETTINGS')                                                                                                         //                                                             
+LenofRSI = input(                                                                                                               //
+ title = 'RSI Length',                                                                                                          //
+ defval = 6,                                                                                                                    //
+ group='RSI SETTINGS')                                                                                                          //                                                              
+rsiOverbought = input(                                                                                                          //
+ title = 'RSI Overbought Level',                                                                                                //
+ defval=85,                                                                                                                     //
+ group='RSI SETTINGS')                                                                                                          //                                        
+rsiOversold = input(                                                                                                            //
+ title = 'RSI Oversold Level',                                                                                                  // 
+ defval = 15,                                                                                                                   //
+ group='RSI SETTINGS')                                                                                                          //                                                                                
+// Get RSI value                                                                                                                //                                                                                                                 
+rsiValue = ta.rsi(rsiSource, LenofRSI)                                                                                          //                                                                                                            
+rsiisoverbt = rsiValue >= rsiOverbought                                                                                         //                                                                                                             
+rsiisoversld = rsiValue <= rsiOversold                                                                                          //                                                                                                        
+// Plot RSI signals to chart                                                                                                    //
+plotshape(showrsi and showoverbtrsi and not only_bullish?                                                                       //
+ rsiisoverbt : na,                                                                                                              //
+ title='RSI Overbought',                                                                                                        //
+ display=display.all,                                                                                                           //
+ location=location.abovebar,                                                                                                    //
+ color=color.new(color.yellow, 0),                                                                                            //
+ style=shape.triangledown, size=size.tiny,                                                                                      //
+ text='OB',                                                                                                                     // 
+ textcolor=color.new(color.yellow, 0))                                                                                        //
+plotshape(showrsi and showoversldrsi and not only_bearish?                                                                      //
+ rsiisoversld : na,                                                                                                             //
+ title='RSI Oversold',                                                                                                          //
+ display=display.all,                                                                                                           //
+ location=location.belowbar,                                                                                                    //
+ color=color.new(color.yellow, 0),                                                                                            //
+ style=shape.triangleup,                                                                                                        //
+ size=size.tiny,                                                                                                                //
+ text='OS',                                                                                                                     //
+ textcolor=color.new(color.yellow, 0))                                                                                        //
+//Alerts for RSI                                                                                                                //                                                                                                            
+alertcondition(rsiisoverbt, title='Overbought RSI', message='RSI Overbought')                                                   //                                                                                                                
+alertcondition(rsiisoversld, title='Oversold RSI', message='RSI Oversold')                                                      //                                                                                                        
+//END RSI-----------------------------------------------------------------------------------------------------------------------//  
+bearish_signal_rsi = (rsiisoversld[1] and not rsiisoversld)                                                                     //                       
+bearish_signal = (bearish_break[1] and not bearish_break)                                                                       //
+bullish_signal_rsi = (rsiisoverbt[1] and not rsiisoverbt)                                                                       //
+bullish_signal = (bullish_break[1] and not bullish_break)                                                                       //
+//END Definitions===============================================================================================================//
+//PLOTSHAPES BULLISH============================================================================================================//
+var label bullishlabel = na                                                                                                     //
+if barstate.isconfirmed and bullish_signal and not only_bullish//bullish_break[1] and not bullish_break                         //
+    bullishlabel := label.new(                                                                                                  //
+     bar_index,                                                                                                                 //
+     y=0,                                                                                                                       //
+     yloc=yloc.abovebar,                                                                                                        //
+     style= label.style_triangledown,                                                                                           //
+     size = size.normal,                                                                                                        //
+     color = color.new(color.red, 0),                                                                                         //
+     text = "Potential \n Bearish \n Reversal",                                                                                 //
+     textcolor = color.new(color.red, 0)                                                                                      //  
+     )                                                                                                                          //
+    label.delete(bullishlabel[1])                                                                                               //
+//                                                                                                                              //
+var line bullishline = na                                                                                                       //
+if barstate.isconfirmed and bullish_break                                                                                       //
+    bullishline := line.new(                                                                                                    //
+     x1=bar_index,                                                                                                              //
+     y1=use_high_bearish,                                                                                                       //
+     x2=bar_index+30,                                                                                                           //
+     y2=use_high_bearish,                                                                                                       //
+     color = color.new(color.red, 0),                                                                                         //
+     extend = extend_lines                                                                                                      //
+     )                                                                                                                          // 
+    line.delete(bullishline[1])                                                                                                 //
+//PLOTSHAPES BEARISH============================================================================================================//
+var label bearishlabel = na                                                                                                     //
+if barstate.isconfirmed and bearish_signal and not only_bearish//bearish_break[1] and not bearish_break                         //  
+    bearishlabel := label.new(                                                                                                  //
+     bar_index,                                                                                                                 //
+     y=0,                                                                                                                       //
+     yloc=yloc.belowbar,                                                                                                        //
+     style= label.style_triangleup,                                                                                             //
+     size = size.normal,                                                                                                        //
+     color = color.new(color.green, 0),                                                                                       // 
+     text = "Potential \n Bullish \n Reversal",                                                                                 //
+     textcolor = color.new(color.green, 0)                                                                                    // 
+     )                                                                                                                          //
+    label.delete(bearishlabel[1])                                                                                               // 
+//                                                                                                                              //
+var line bearishline = na                                                                                                       //
+if barstate.isconfirmed and bearish_break                                                                                       //
+    bearishline := line.new(                                                                                                    //
+     bar_index,                                                                                                                 //
+     use_low_bullish,                                                                                                           //
+     bar_index+30,                                                                                                              //
+     use_low_bullish,                                                                                                           //
+     color = color.new(color.green, 0),                                                                                       //
+     extend = extend_lines                                                                                                      //
+     )                                                                                                                          //
+    line.delete(bearishline[1])                                                                                                 //  
+//END Script====================================================================================================================// 
+//SCREENER BEGIN ===============================================================================================================//
+//Begin User Inputs
+//Ticker 01 Begin
+tickerinput01 = input.symbol("KUCOIN:BTCUSDT", title = 'Ticker 01', group = 'Screener', inline = 'ticker01')
+tickertimeframe01 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker01')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref01 = syminfo.prefix(tickerinput01)
+tick01 = syminfo.ticker(tickerinput01)
+t01 = ticker.new(pref01, tick01)
+//Ticker 01 End
+//
+//Ticker 02 Begin
+tickerinput02 = input.symbol("KUCOIN:ETHUSDT", title = 'Ticker 02', group = 'Screener', inline = 'ticker02')
+tickertimeframe02 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker02')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref02 = syminfo.prefix(tickerinput02)
+tick02 = syminfo.ticker(tickerinput02)
+t02 = ticker.new(pref02, tick02)
+//Ticker 02 End
+//
+//Ticker 03 Begin
+tickerinput03 = input.symbol("KUCOIN:BNBUSDT", title = 'Ticker 03', group = 'Screener', inline = 'ticker03')
+tickertimeframe03 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker03')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref03 = syminfo.prefix(tickerinput03)
+tick03 = syminfo.ticker(tickerinput03)
+t03 = ticker.new(pref03, tick03)
+//Ticker 03 End
+//
+//Ticker 04 Begin
+tickerinput04 = input.symbol("KUCOIN:XRPUSDT", title = 'Ticker 04', group = 'Screener', inline = 'ticker04')
+tickertimeframe04 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker04')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref04 = syminfo.prefix(tickerinput04)
+tick04 = syminfo.ticker(tickerinput04)
+t04 = ticker.new(pref04, tick04)
+//Ticker 04 End
+//
+//Ticker 05 Begin
+tickerinput05 = input.symbol("KUCOIN:ADAUSDT", title = 'Ticker 04', group = 'Screener', inline = 'ticker05')
+tickertimeframe05 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker05')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref05 = syminfo.prefix(tickerinput05)
+tick05 = syminfo.ticker(tickerinput05)
+t05 = ticker.new(pref05, tick05)
+//Ticker 05 End
+//
+//Ticker 06 Begin
+tickerinput06 = input.symbol("KUCOIN:DOGEUSDT", title = 'Ticker 06', group = 'Screener', inline = 'ticker06')
+tickertimeframe06 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker06')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref06 = syminfo.prefix(tickerinput06)
+tick06 = syminfo.ticker(tickerinput06)
+t06 = ticker.new(pref06, tick06)
+//Ticker 06 End
+//
+//Ticker 07 Begin
+tickerinput07 = input.symbol("KUCOIN:MATICUSDT", title = 'Ticker 07', group = 'Screener', inline = 'ticker07')
+tickertimeframe07 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker07')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref07 = syminfo.prefix(tickerinput07)
+tick07 = syminfo.ticker(tickerinput07)
+t07 = ticker.new(pref07, tick07)
+//Ticker 07 End
+//
+//Ticker 08 Begin
+tickerinput08 = input.symbol("KUCOIN:DOTUSDT", title = 'Ticker 08', group = 'Screener', inline = 'ticker08')
+tickertimeframe08 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker08')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref08 = syminfo.prefix(tickerinput08)
+tick08 = syminfo.ticker(tickerinput08)
+t08 = ticker.new(pref08, tick08)
+//Ticker 08 End
+//
+//Ticker 09 Begin
+tickerinput09 = input.symbol("KUCOIN:SOLUSDT", title = 'Ticker 09', group = 'Screener', inline = 'ticker09')
+tickertimeframe09 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker09')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref09 = syminfo.prefix(tickerinput09)
+tick09 = syminfo.ticker(tickerinput09)
+t09 = ticker.new(pref09, tick09)
+//Ticker 09 End
+//
+//Ticker 10 Begin
+tickerinput10 = input.symbol("KUCOIN:SHIBUSDT", title = 'Ticker 10', group = 'Screener', inline = 'ticker10')
+tickertimeframe10 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker10')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref10 = syminfo.prefix(tickerinput10)
+tick10 = syminfo.ticker(tickerinput10)
+t10 = ticker.new(pref10, tick10)
+//Ticker 10 End
+//
+//Ticker 11 Begin
+tickerinput11 = input.symbol("KUCOIN:TRXUSDT", title = 'Ticker 11', group = 'Screener', inline = 'ticker11')
+tickertimeframe11 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker11')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref11 = syminfo.prefix(tickerinput11)
+tick11 = syminfo.ticker(tickerinput11)
+t11 = ticker.new(pref11, tick11)
+//Ticker 11 End
+//
+//Ticker 12 Begin
+tickerinput12 = input.symbol("KUCOIN:AVAXUSDT", title = 'Ticker 12', group = 'Screener', inline = 'ticker12')
+tickertimeframe12 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker12')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref12 = syminfo.prefix(tickerinput12)
+tick12 = syminfo.ticker(tickerinput12)
+t12 = ticker.new(pref12, tick12)
+//Ticker 12 End
+//
+//Ticker 13 Begin
+tickerinput13 = input.symbol("KUCOIN:UNIUSDT", title = 'Ticker 13', group = 'Screener', inline = 'ticker13')
+tickertimeframe13 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker13')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref13 = syminfo.prefix(tickerinput13)
+tick13 = syminfo.ticker(tickerinput13)
+t13 = ticker.new(pref13, tick13)
+//Ticker 13 End
+//
+//Ticker 14 Begin
+tickerinput14 = input.symbol("KUCOIN:LTCUSDT", title = 'Ticker 14', group = 'Screener', inline = 'ticker14')
+tickertimeframe14 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker14')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref14 = syminfo.prefix(tickerinput14)
+tick14 = syminfo.ticker(tickerinput14)
+t14 = ticker.new(pref14, tick14)
+//Ticker 14 End
+//
+//Ticker 15 Begin
+tickerinput15 = input.symbol("NASDAQ:AAPL", title = 'Ticker 15', group = 'Screener', inline = 'ticker15')
+tickertimeframe15 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker15')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref15 = syminfo.prefix(tickerinput15)
+tick15 = syminfo.ticker(tickerinput15)
+t15 = ticker.new(pref15, tick15)
+//Ticker 15 End
+//
+//Ticker 16 Begin
+tickerinput16 = input.symbol("KUCOIN:LINKUSDT", title = 'Ticker 16', group = 'Screener', inline = 'ticker16')
+tickertimeframe16 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker16')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref16 = syminfo.prefix(tickerinput16)
+tick16 = syminfo.ticker(tickerinput16)
+t16 = ticker.new(pref16, tick16)
+//Ticker 16 End
+//Ticker 17 Begin
+tickerinput17 = input.symbol("KRAKEN:USDCAD", title = 'Ticker 17', group = 'Screener', inline = 'ticker17')
+tickertimeframe17 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker17')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref17 = syminfo.prefix(tickerinput17)
+tick17 = syminfo.ticker(tickerinput17)
+t17 = ticker.new(pref17, tick17)
+//Ticker 17 End
+//Ticker 18 Begin
+tickerinput18 = input.symbol("TVC:DXY", title = 'Ticker 18', group = 'Screener', inline = 'ticker18')
+tickertimeframe18 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker18')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref18 = syminfo.prefix(tickerinput18)
+tick18 = syminfo.ticker(tickerinput18)
+t18 = ticker.new(pref18, tick18)
+//Ticker 18 End
+//Ticker 19 Begin
+tickerinput19 = input.symbol("NASDAQ:TSLA", title = 'Ticker 19', group = 'Screener', inline = 'ticker19')
+tickertimeframe19 = input.timeframe('30', "Timeframe", 
+ options=['1', '3', '5', '15', '30', '45', '60', '120', '180', '240', 'D', '5D', 'W', 'M', '3M' ], 
+ group = 'Screener', 
+ inline = 'ticker19')
+//t = ticker.new(syminfo.prefix, syminfo.ticker, session.regular, adjustment.splits)
+pref19 = syminfo.prefix(tickerinput19)
+tick19 = syminfo.ticker(tickerinput19)
+t19 = ticker.new(pref19, tick19)
+//Ticker 19 End
+//
+//Custom Functions
+Sell_Signal = bullish_signal                                                                                                                                                                                                 
+Buy_Signal = bearish_signal
+//end user inputs
+bull_function() => Buy_Signal
+bear_function() => Sell_Signal 
+
+custom_signal() => (bull_function() or bear_function())
+//close > open 
+//and close[1] > open[1] 
+//and close[2] > open[2] 
+//and close[3] > open[3] 
+//or close < open 
+//and close[1] < open[1] 
+//and close[2] < open[2] 
+//and close[3] < open[3]
+//buythedip
+s1  = request.security(t01, tickertimeframe01, custom_signal())
+s2  = request.security(t02, tickertimeframe02, custom_signal())
+s3  = request.security(t03, tickertimeframe03, custom_signal())
+s4  = request.security(t04, tickertimeframe04, custom_signal())
+s5  = request.security(t05, tickertimeframe05, custom_signal())
+s6  = request.security(t06, tickertimeframe06, custom_signal())
+s7  = request.security(t07, tickertimeframe07, custom_signal())
+s8  = request.security(t08, tickertimeframe08, custom_signal())
+s9  = request.security(t09, tickertimeframe09, custom_signal())
+s10 = request.security(t10, tickertimeframe10, custom_signal())
+s11 = request.security(t11, tickertimeframe11, custom_signal())
+s12 = request.security(t12, tickertimeframe12, custom_signal())
+s13 = request.security(t13, tickertimeframe13, custom_signal())
+s14 = request.security(t14, tickertimeframe14, custom_signal())
+s15 = request.security(t15, tickertimeframe15, custom_signal())
+s16 = request.security(t16, tickertimeframe16, custom_signal())
+s17 = request.security(t17, tickertimeframe17, custom_signal())
+s18 = request.security(t18, tickertimeframe18, custom_signal())
+s19 = request.security(t19, tickertimeframe19, custom_signal())
+
+scr_label = 'Alerts\n'
+
+scr_label := s1  ? 
+ scr_label + '\n' + tick01  : 
+ scr_label
+scr_label := s2  ? scr_label + '\n' + tick02  : scr_label
+scr_label := s3  ? scr_label + '\n' + tick03  : scr_label
+scr_label := s4  ? scr_label + '\n' + tick04  : scr_label
+scr_label := s5  ? scr_label + '\n' + tick05  : scr_label
+scr_label := s6  ? scr_label + '\n' + tick06  : scr_label
+scr_label := s7  ? scr_label + '\n' + tick07  : scr_label
+scr_label := s8  ? scr_label + '\n' + tick08  : scr_label
+scr_label := s9  ? scr_label + '\n' + tick09  : scr_label
+scr_label := s10 ? scr_label + '\n' + tick10  : scr_label
+scr_label := s11 ? scr_label + '\n' + tick11  : scr_label
+scr_label := s12 ? scr_label + '\n' + tick12  : scr_label
+scr_label := s13 ? scr_label + '\n' + tick13  : scr_label
+scr_label := s14 ? scr_label + '\n' + tick14  : scr_label
+scr_label := s15 ? scr_label + '\n' + tick15  : scr_label
+scr_label := s16 ? scr_label + '\n' + tick16  : scr_label
+scr_label := s17 ? scr_label + '\n' + tick17  : scr_label
+scr_label := s18 ? scr_label + '\n' + tick18  : scr_label
+scr_label := s19 ? scr_label + '\n' + tick19  : scr_label
+//Label
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family) → series label
+if showlabel
+    lab_l = label.new(
+          bar_index, 0, scr_label, 
+          color=color.yellow, 
+          textcolor=color.blue, 
+          style = label.style_none,
+          yloc = yloc.belowbar)
+
+    label.delete(lab_l[1])
+
+
+//SIGNALS
+alertcondition(bearish_signal, title = 'Potential Bullish Reversal', message = 'Possible Bullish Reversal')   
+alertcondition(bullish_signal, title = 'Potential Bearish Reversal', message = 'Possible Bearish Reversal')
+alertcondition(Sell_Signal, title = 'Potential Bearish GRID Entry', message = 'Possible Bearish GRID Entry')   
+alertcondition(Buy_Signal, title = 'Potential Bullish GRID Entry', message = 'Possible Bullish GRID Entry')
+// Plot BUY SELL signals to chart 
+show_sell_signals = input.bool(true, title = 'Show Short Entries on Chart?')
+show_buy_signals = input.bool(true, title = "Show Long Entries on Chart?")
+plotshape(
+ showrsi and show_sell_signals and not only_bullish ? Sell_Signal : na, 
+ title='RSI Overbought', 
+ display=display.all, 
+ location=location.abovebar, 
+ color=color.new(color.red, 0), 
+ style=shape.triangledown, 
+ size=size.tiny, text='', 
+ textcolor=color.new(color.yellow, 0))
+plotshape(
+ showrsi and show_buy_signals and not only_bearish ? Buy_Signal : na, 
+ title='RSI Oversold', 
+ display=display.all, 
+ location=location.belowbar, 
+ color=color.new(color.lime, 0), 
+ style=shape.triangleup, size=size.tiny, 
+ text='', 
+ textcolor=color.new(color.yellow, 0))

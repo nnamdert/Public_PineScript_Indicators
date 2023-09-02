@@ -1,5 +1,6 @@
 # Public_PineScript_Indicators
-All of the code for my nnamdert Public Pinescript Indicators
+All of the code for my nnamdert Public Pinescript Indicators.
+
 Some of these "Public" facing indicators are available and published on Tradingview itself.
 Some of these are NOT available on Tradingview and are NOT published.
 The Indicators that are NOT published are available for use by simply copying the code and pasting it into the pine editor.

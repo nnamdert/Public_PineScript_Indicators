@@ -1,0 +1,332 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+
+//NOT A REQUIREMENT, BUT IT WOULD BE NICE TO RECEIVE A QUICK SHOUT OUT /CREDIT IF YOU USE THIS SCRIPT IN YOUR SCRIPT
+// © nnamdert
+//@version=5
+indicator("FOREX MASTER PATTERN Companion Tool", overlay = true, max_lines_count = 500)
+//BEGIN ENGULFING CANDLE SCRIPT
+//BEGIN Get User Inputs - LINES===============================================================================================================//
+show_lines = input.bool(                                                                                                                      //
+ defval = true,                                                                                                                               //
+ title = 'Show Lines on Chart?',                                                                                                              //
+ tooltip = 'Checking this box will show lines on the chart. Unchecking it will hide only the chart lines, but everything else will remain.',  //
+ group = 'Line Settings'                                                                                                                      // 
+ )                                                                                                                                            //
+//HANDLES MAX_LINES_COUNTS ISSUE==============================================================================================================//
+lineLimitInput = input.int(                                                                                                                   //
+ defval = 10,                                                                                                                                 //
+ title = 'Max Lines to Show',                                                                                                                 // 
+ tooltip = 'Adjust the number to increase / decrease the total number of lines shown on the chart. This setting only affects this Indicator.',//
+ group = 'Line Settings'                                                                                                                      //
+ )                                                                                                                                            //
+if array.size(line.all) > lineLimitInput                                                                                                      //
+    for i = 0 to array.size(line.all) - lineLimitInput - 1                                                                                    //
+        line.delete(array.get(line.all, i))                                                                                                   //
+//CONTINUE Get User Inputs - LINES============================================================================================================//
+int value_line_width_settings = input.int(                                                                                                    //
+ defval = 2,                                                                                                                                  //
+ title = 'Line Width',                                                                                                                        //
+ tooltip = 'coming soon',                                                            
+ group = 'Line Settings'                                                                                                                      //
+ )                                                                                                                                            //
+extend_lines_Bullish = input.bool(                                                                                                            //
+ defval = false,                                                                                                                              //
+ title = 'Extend Bullish Lines?',                                                                                                             //
+ tooltip = 'Checking will extend all lines from Bullish Engulfing candle areas to the right on the chart (past lanes will be visible too)',   //
+ group = 'Line Settings'                                                                                                                      //
+ ) ? extend.right : extend.none                                                                                                               //
+extend_lines_Bearish = input.bool(                                                                                                            //
+ defval = false,                                                                                                                              //
+ title = 'Extend Bearish Lines?',                                                                                                             //
+ tooltip = 'Checking will extend all lines from Bearish Engulfing candle areas to the right on the chart (past lanes will be visible too)',   //
+ group = 'Line Settings'                                                                                                                      // 
+ ) ? extend.right : extend.none                                                                                                               //
+//END Get User Inputs - LINES=================================================================================================================//
+//BEGIN Get User Inputs - ENGULFING AREA BOX==================================================================================================// 
+hide_engulfing_pattern_areas = input.bool(                                                                                                    //
+ defval = false,                                                                                                                              //
+ title = 'Hide all Engulfing Pattern Shaded Area Boxes',                                                                                      //                  //    
+ tooltip = '',                                                                                                                                //
+ group = 'ENGULFING PATTERNS - SHADED AREA BOXES'                                                                                             //
+ )                                                                                                                                            //
+//END Get User Inputs - ENGULFING AREA BOX====================================================================================================// 
+//BEGIN GET USER INPUTS - BOX COLOR SETTINGS==================================================================================================//
+bearish_engulfing_box_color = input.color(                                                                                                    //
+ defval = #9598a1,                                                                                                                          //
+ title = 'Bearish Engulfing Area Background Color',                                                                                           //
+ tooltip = 'This is the background color of a Bearish Engulfing Box',                                                                         //
+ group = 'Box Settings - Bearish',                                                                                                            //
+ confirm = false)                                                                                                                             //
+bearish_engulfing_box_transp = input.int(                                                                                                     //
+ defval = 80,                                                                                                                                 //
+ title = 'Bearish Engulfing Area Background Color Transparency',                                                                              //
+ tooltip = 'This is the transparency of the background color for the Bearish shaded area (box).',                                             //
+ group = 'Box Settings - Bearish'                                                                                                             //
+ )                                                                                                                                            //
+bearish_engulfing_box_border_color = input.color(                                                                                             //
+ defval = color.red,                                                                                                                        //
+ title = 'Bearish Engulfing Area Border Color',                                                                                               //
+ tooltip = 'This is the border color of a Bearish Engulfing Box',                                                                             //
+ group = 'Box Settings - Bearish',                                                                                                            //
+ confirm = false)                                                                                                                             //
+bearish_engulfing_box_border_width = input.int(                                                                                               //
+ defval = 2,                                                                                                                                  //
+ title = 'Bearish Engulfing Area Border Width',                                                                                               //
+ tooltip = 'This is the border width for the Bearish shaded area (box) created when a Bearish Engulfing candle formed.',                      //
+ group = 'Box Settings - Bearish'                                                                                                             //
+ )                                                                                                                                            //
+bullish_engulfing_box_color = input.color(                                                                                                    //
+ defval = #9598a1,                                                                                                                          //
+ title = 'Bullish Engulfing Area Background Color',                                                                                           //
+ tooltip = 'This is the background color of a Bullish Engulfing Box',                                                                         //
+ group = 'Box Settings - Bullish',                                                                                                            //
+ confirm = false)                                                                                                                             //
+bullish_engulfing_box_transp = input.int(                                                                                                     //
+ defval = 80,                                                                                                                                 //
+ title = 'Bullish Engulfing Area Background Color Transparency',                                                                              //
+ tooltip = 'This is the background color Transparency for the Bullish shaded area (box) created when a Bullish Engulfing candle formed.',     //
+ group = 'Box Settings - Bullish'                                                                                                             //
+ )                                                                                                                                            //
+bullish_engulfing_box_border_color = input.color(                                                                                             //
+ defval = color.lime,                                                                                                                       //
+ title = 'Bullish Engulfing Area Border Color',                                                                                               //
+ tooltip = 'This is the border color of a Bullish Engulfing Box',                                                                             //
+ group = 'Box Settings - Bullish',                                                                                                            //
+ confirm = false)                                                                                                                             //
+bullish_engulfing_box_border_width = input.int(                                                                                               //
+ defval = 2,                                                                                                                                  //
+ title = 'Bullish Engulfing Area Border Width',                                                                                               //
+ tooltip = 'This is the border width for the Bullish shaded area (box) created when a Bullish Engulfing candle formed.',                      //
+ group = 'Box Settings - Bullish'                                                                                                             //
+ )                                                                                                                                            //
+//END GET USER INPUTS - BOX COLOR SETTINGS=============================++=====================================================================//
+//END Get User Inputs - ENGULFING BARS========================================================================================================//
+hide_engulfing_patterns = input.bool(                                                                                                         //
+ defval=false,                                                                                                                                //
+ title = 'Hide all Engulfing Plotshapes and Color Candles?',                                                                                  //
+ group = 'ENGULFING PATTERNS - PLOTS AND CANDLES'                                                                                             //
+ )                                                                                                                                            //
+hide_bullish_engulfing_patterns = input.bool(                                                                                                 //
+ defval=false,                                                                                                                                //
+ title ='Hide Bullish Engulfing Plotshapes and Color Candles (check to hide on chart)',                                                       //
+ group = 'Engulfing Candle Patterns and Plots')                                                                                               //
+hide_bearish_engulfing_patterns = input.bool(                                                                                                 // 
+ defval=false,                                                                                                                                //
+ title ='Hide Bearish Engulfing Plotshapes and Color Candles (check to hide on chart)',                                                       //
+ group = 'Engulfing Candle Patterns and Plots')                                                                                               //
+//END Get User Inputs - ENGULFING BARS========================================================================================================//
+//BEGIN Get User Inputs - Size Factor=========================================================================================================//
+bearish_engulfing_size = input.float(                                                                                                         //
+ defval = 2,                                                                                                                                  //
+ title = 'Bearish Engulfing Candle Size Ratio',                                                                                               //
+ minval = 2,                                                                                                                                  // 
+ maxval = 6,                                                                                                                                  //   
+ step = 1,                                                                                                                                    //
+ tooltip = '2 is default. Better NOT to change. Engulfing candle size is TWO times the size of the engulfed candle. Choose between 2 and 6',  //
+ group = 'Engulfing Candle Size Setting - Default is Recommended',                                                                            //
+ confirm = false)                                                                                                                             //
+bullish_engulfing_size = input.float(                                                                                                         //
+ defval = 2,                                                                                                                                  //
+ title = 'Bullish Engulfing Candle Size Ratio',                                                                                               //
+ minval = 2,                                                                                                                                  //
+ maxval = 6,                                                                                                                                  //
+ step = 1,                                                                                                                                    //
+ tooltip = '2 is default. Better NOT to change. Engulfing candle size is TWO times the size of the engulfed candle. Choose between 2 and 6',  //
+ group = 'Engulfing Candle Size Setting - Default is Recommended',                                                                            //
+ confirm = false)                                                                                                                             //
+//END Get User Inputs - Size Factor===========================================================================================================//
+//BEGIN Get User Inputs - BAR COLORS==========================================================================================================//
+bearish_engulfing_bar_color = input.color(                                                                                                    //
+ defval = color.yellow,                                                                                                                     //
+ title = 'Bearish Engulfing Candle',                                                                                                          //
+ tooltip = 'This is the color of a Bearish Engulfing Candle',                                                                                 //
+ group = 'Candle Colors',                                                                                                                     //
+ confirm = false)                                                                                                                             //
+bullish_engulfing_bar_color = input.color(                                                                                                    //
+ defval = color.yellow,                                                                                                                     //
+ title = 'Bullish Engulfing Candle',                                                                                                          //
+ tooltip = 'This is the color of a Bullish Engulfing Candle',                                                                                 //
+ group = 'Candle Colors',                                                                                                                     //
+ confirm = false)                                                                                                                             //
+//END Get User Inputs - BAR COLORS============================================================================================================//
+//BEGIN BEARISH ENGULFING DEFINITION+=========================================================================================================//
+atr = ta.atr(14)                                                                                                                              //
+bar_bearish_engulfing =                                                                                                                       //
+//CLOSE Price of the CURRENT Engulfing candle /session must be (less than) the OPEN Price of PREVIOUS session                                 //
+ close <= open[1]                                                                                                                             //
+//OPEN Price of the CURRENT Engulfing candle /session must be (greater than) the CLOSE Price of PREVIOUS session                              //                                                                                              
+ and open >= close[1]                                                                                                                         //
+//Previous Session (before the engulfing candle) - the candle /session being Engulfed MUST be a GREEN candle /session                         //
+ and (close[1] > open[1])                                                                                                                     //
+//OPEN and CLOSE of the CURRENT Engulfing Session is (greater than or equal to) the previous candle /session being Engulfed and               //
+//is LARGER by a factor of 2 - 6 based on user input - (or basically twice as big) - ENGULFING CANDLE MUST BE RED [open - close = RED]        //
+ and (open - close) > ((close[1] - open[1]) * bearish_engulfing_size)                                                                         //
+//CURRENT Engulfing candle /session needs to be (greater than) the atr                                                                        // 
+ and (open - close) > atr                                                                                                                     //
+//END BEARISH ENGULFING DEFINITION============================================================================================================//
+//BEGIN BULLISH ENGULFING DEFINITION==========================================================================================================//
+bar_bullish_engulfing =                                                                                                                       //
+ close >= open[1]                                                                                                                             //
+ and open <= close[1]                                                                                                                         // 
+ and (close[1] < open[1])                                                                                                                     //
+ and (close - open) > ((open[1] - close[1]) * bullish_engulfing_size)                                                                         //
+ and (close - open) > atr                                                                                                                     // 
+//END BULLISH ENGULFING DEFINITION============================================================================================================//
+//BEGIN ENGULFING CANDLE BAR COLOR CODE=======================================================================================================//
+barcolor(                                                                                                                                     //
+ hide_engulfing_patterns or hide_bullish_engulfing_patterns ? na : bar_bullish_engulfing ?                                                    //                    
+ color.new(bullish_engulfing_bar_color, 0) : na, title = 'Bullish Engulfing')                                                                 // 
+barcolor(                                                                                                                                     //
+ hide_engulfing_patterns or hide_bearish_engulfing_patterns ? na : bar_bearish_engulfing ?                                                    // 
+ color.new(bearish_engulfing_bar_color, 0) : na, title = 'Bearish Engulfing')                                                                 //
+//END ENGULFING CANDLE BAR COLOR CODE=========================================================================================================// 
+//BEGIN ENGULFING CANDLE ALERTS===============================================================================================================//
+alertcondition(                                                                                                                               //
+ bar_bullish_engulfing,                                                                                                                       //
+ title = 'Bullish Engulfing Alert',                                                                                                           //
+ message = 'Bullish Engulfing Pattern Identified'                                                                                             //
+ )                                                                                                                                            //
+alertcondition(                                                                                                                               //
+ bar_bearish_engulfing,                                                                                                                       //
+ title = 'Bearish Engulfing Alert',                                                                                                           //
+ message = 'Bearish Engulfing Pattern Identified'                                                                                             //
+ )                                                                                                                                            //
+//END ENGULFING CANDLE ALERTS=================================================================================================================//
+//BEGIN ENGULFING CANDLE PLOTS================================================================================================================//                                                                  
+plotshape(hide_engulfing_patterns or hide_bullish_engulfing_patterns ? na :                                                                   //
+ bar_bullish_engulfing,                                                                                                                       //
+ title = 'Bullish Engulfing Plot',                                                                                                            //
+ style = shape.arrowup,                                                                                                                       //
+ location = location.belowbar,                                                                                                                //  
+ color = color.new(#08f500, 0),                                                                                                             //
+ size = size.large                                                                                                                            //
+ )                                                                                                                                            //        
+plotshape(hide_engulfing_patterns or hide_bearish_engulfing_patterns ? na :                                                                   //
+ bar_bearish_engulfing,                                                                                                                       //
+ title = 'Bearish Engulfing Plot',                                                                                                            //
+ style = shape.arrowdown,                                                                                                                     //
+ location = location.abovebar,                                                                                                                // 
+ color = color.new(#f50014, 0),                                                                                                             //
+ size = size.large                                                                                                                            // 
+ )                                                                                                                                            //
+//END ENGULFING CANDLE PLOTS==================================================================================================================//
+//BEGIN ENGULFING BOXES CODE==================================================================================================================//
+var box[] Open_Bullish_Engulfing_Box = array.new_box()                                                                                        //
+var box[] Closed_Open_Bullish_Engulfing_Box = array.new_box()                                                                                 //                                                                                                                                            
+var box[] Open_Bearish_Engulfing_Box = array.new_box()                                                                                        //                                   
+var box[] Closed_Open_Bearish_Engulfing_Box = array.new_box()                                                                                 //                                                                                                                                            
+//                                                                                                                                            //
+Bullish_Engulfing_Is_True =                                                                                                                   //
+ close >= open[1]                                                                                                                             //
+ and open <= close[1]                                                                                                                         //
+ and (close[1] < open[1])                                                                                                                     //
+ and (close - open) > ((open[1] - close[1]) * bullish_engulfing_size)                                                                         //
+ and (close - open) > atr                                                                                                                     //
+//                                                                                                                                            //
+Bearish_Engulfing_Is_True =                                                                                                                   //
+ close <= open[1]                                                                                                                             //
+ and open >= close[1]                                                                                                                         //
+ and (close[1] > open[1])                                                                                                                     //
+ and (open - close) > ((close[1] - open[1]) * bearish_engulfing_size)                                                                         //
+ and (open - close) > atr                                                                                                                     //
+//                                                                                                                                            //
+Still_Bull = ta.barssince(Bullish_Engulfing_Is_True) >= 1                                                                                     //   
+Still_Bear = ta.barssince(Bearish_Engulfing_Is_True) >= 1                                                                                     //
+//                                                                                                                                            //
+if Bullish_Engulfing_Is_True and not hide_engulfing_pattern_areas                                                                             //
+    array.push(                                                                                                                               //
+     Open_Bullish_Engulfing_Box,                                                                                                              // 
+     box.new(bar_index - 1, high[1], bar_index, low[1],                                                                                       //
+     border_color = color.new(bullish_engulfing_box_border_color, 0),                                                                         //
+     border_width = bullish_engulfing_box_border_width,                                                                                       //
+     border_style = line.style_dotted,                                                                                                        //
+     extend=extend.right,                                                                                                                     //
+     bgcolor=color.new(bullish_engulfing_box_color, bullish_engulfing_box_transp)                                                             //
+     ))                                                                                                                                       //
+//                                                                                                                                            //
+if Bearish_Engulfing_Is_True and not hide_engulfing_pattern_areas                                                                             //
+    array.push(                                                                                                                               //
+     Open_Bearish_Engulfing_Box,                                                                                                              //
+     box.new(bar_index - 1, high[1], bar_index, low[1],                                                                                       //
+     border_color = color.new(bearish_engulfing_box_border_color, 0),                                                                         //
+     border_width=bearish_engulfing_box_border_width,                                                                                         //
+     border_style = line.style_dotted,                                                                                                        //
+     extend=extend.right,                                                                                                                     //
+     bgcolor=color.new(bearish_engulfing_box_color, bearish_engulfing_box_transp)                                                             //   
+     ))                                                                                                                                       //
+//                                                                                                                                            //
+for Area_Box in Open_Bullish_Engulfing_Box                                                                                                    //
+    Breached_Level_Occurred = box.get_bottom(Area_Box) > low                                                                                  //                              
+    if  Breached_Level_Occurred and Still_Bull                                                                                                //
+        box.set_extend(Area_Box, extend.none)                                                                                                 //
+        box.set_right(Area_Box, bar_index)                                                                                                    //
+        Closed_Area_Box = box.copy(Area_Box)                                                                                                  //
+        array.push(Closed_Open_Bullish_Engulfing_Box, Closed_Area_Box)                                                                        //
+        box.delete(Area_Box)                                                                                                                  //
+//                                                                                                                                            //    
+for Area_Box in Open_Bearish_Engulfing_Box                                                                                                    //
+    Breached_Level_Occurred = box.get_top(Area_Box) < high                                                                                    //
+    if Breached_Level_Occurred and Still_Bear                                                                                                 //
+        box.set_extend(Area_Box, extend.none)                                                                                                 //
+        box.set_right(Area_Box, bar_index)                                                                                                    //
+        Closed_Area_Box = box.copy(Area_Box)                                                                                                  //
+        array.push(Closed_Open_Bullish_Engulfing_Box, Closed_Area_Box)                                                                        //
+        box.delete(Area_Box)                                                                                                                  //
+//END ENGULFING BOXES CODE====================================================================================================================//
+//                                                                                                                                            //
+//BEGIN MIDLINE CODE==========================================================================================================================//
+//                BULLISH                                                                                                                     //
+var float middleBody_Bullish = na                                                                                                             //
+//                                                                                                                                            //
+if bar_bullish_engulfing and show_lines                                                                                                       //  
+    middleBody_Bullish := ((open[1] + close[1]) / 2) // (high + low) / 2)                                                                     //
+    midline = line.new(bar_index[1], middleBody_Bullish, bar_index+100,                                                                       //
+     middleBody_Bullish,                                                                                                                      //
+     width = value_line_width_settings,                                                                                                       //
+     color = color.new(color.green, 0),                                                                                                     //
+     extend=extend_lines_Bullish                                                                                                              //
+     )                                                                                                                                        //
+//                                                                                                                                            //    
+else                                                                                                                                          //
+    if bar_bearish_engulfing                                                                                                                  // 
+        middleBody_Bullish := ((open[1] + close[1]) / 2) // or (high + low) / 2)                                                              //
+    midline = line.new(bar_index[1], middleBody_Bullish, bar_index+100,                                                                       //
+     middleBody_Bullish,                                                                                                                      //
+     width = value_line_width_settings,                                                                                                       //
+     color = color.new(color.red, 0),                                                                                                       //
+     extend=extend_lines_Bullish                                                                                                              //
+     )                                                                                                                                        // 
+    line.delete(midline)                                                                                                                      //
+//                                                                                                                                            //    
+NotValid_Bull = not bar_bearish_engulfing or bar_bullish_engulfing                                                                            //
+if NotValid_Bull                                                                                                                              //
+    middleBody_Bullish := na                                                                                                                  //
+//                                                                                                                                            //
+//       BEARISH LINES                                                                                                                        //
+var float middleBody_Bearish = na                                                                                                             //
+//                                                                                                                                            //
+if bar_bearish_engulfing and show_lines                                                                                                       //
+    middleBody_Bearish := ((open[1] + close[1]) / 2) // (high + low) / 2)                                                                     //                                                                  //
+    midline = line.new(bar_index[1], middleBody_Bearish, bar_index+100,                                                                       //
+     middleBody_Bearish,                                                                                                                      //
+     width = value_line_width_settings,                                                                                                       // 
+     color = color.new(color.red, 0),                                                                                                       //
+     extend=extend_lines_Bearish                                                                                                              //
+     )                                                                                                                                        // 
+//                                                                                                                                            //    
+else                                                                                                                                          //
+    if bar_bullish_engulfing                                                                                                                  //
+        middleBody_Bearish := ((open[1] + close[1]) / 2) // or (high + low) / 2)                                                              // 
+    midline = line.new(bar_index[1], middleBody_Bearish, bar_index+100,                                                                       //
+     middleBody_Bearish,                                                                                                                      //
+     width = value_line_width_settings,                                                                                                       //
+     color = color.new(color.green, 0),                                                                                                     //
+     extend=extend_lines_Bearish                                                                                                              //
+     )                                                                                                                                        //
+    line.delete(midline)                                                                                                                      //
+//                                                                                                                                            // 
+NotValid_Bear = not bar_bullish_engulfing or bar_bearish_engulfing                                                                            //
+if NotValid_Bear                                                                                                                              //
+    middleBody_Bearish := na                                                                                                                  //
+//END MIDLINE SCRIPT==========================================================================================================================//
+//END ENGULFING CANDLE SCRIPT

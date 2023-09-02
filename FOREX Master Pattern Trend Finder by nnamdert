@@ -1,0 +1,347 @@
+//@version=5
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+indicator(title='FOREX Master Pattern Trend Finder by nnamdert', shorttitle='FMP TF', overlay = false)
+//GET USER INPUTS================================================================================================================
+bool use_custom_ticker = false // input.bool(
+ //defval = false, 
+ //title='Custom ticker? [Y/N]', 
+ //group = 'Expiremental - (May Cause Errors)', 
+ //confirm=false, 
+ //tooltip = 'Expiremental'
+ //)
+customized_ticker = '' //input.symbol(
+ //defval = '', 
+ //title = 'Ticker', 
+ //group = 'Expiremental - (May Cause Errors)', 
+ //tooltip = 'Expiremental'
+ //)  
+bool useCustomRes = false //input.bool
+ //(
+ //defval = false, 
+ //title='Use Alternate Timeframe?', 
+ //confirm=false)
+customized_resolution = '' //input.timeframe
+ //(
+ //title='Time interval (W, D, [min])', 
+ //defval='', 
+ //tooltip = 'If Use Alternate Timeframe is checked, you can use this to change the timeframe'
+ //)
+//CUSTOM CHOICE CODE=============================================================================================================//
+ticker_choice = use_custom_ticker ? customized_ticker : syminfo.tickerid
+resolution_choice = useCustomRes ? customized_resolution : timeframe.period
+request_security = request.security(ticker_choice, resolution_choice, close)
+
+length = 21 //input.int(21, minval=1, title='Williams%R Length')
+
+recent_highest = ta.highest(length) //recent highest value
+recent_lowest = ta.lowest(length) //recent lowest value
+williamsr_calc = 100 * (request_security - recent_highest) / (recent_highest - recent_lowest)
+src = williamsr_calc
+int len = 13 // input.int(13, minval=1, title='Moving Average Length', tooltip = 'Default is 13')
+williamsr_ema = ta.ema(williamsr_calc, len)
+center_line = -50
+
+//Inputs
+PaintneutralZones  = input.bool
+ (
+ defval = true, 
+ title='Color Code Neutral Zones with Yellow Lines?',
+ tooltip = 'Bullish trends are GREEN, Bearish Trends are RED. Checking this box will differentiate neutral trends (neither Bullish or Bearish) with a YELLOW line.'
+ )
+FillneutralZZones = input.bool
+ (
+ defval = true, 
+ title='Color Code Neutral Zones with Yellow Fill?',
+ tooltip = 'Bullish trends are filled with GREEN and Bearish Trends are filled with RED. Checking this box will differentiate neutral trends (neither Bullish or Bearish) with YELLOW fill.'
+ )
+
+//CONFIRM BAR COLOR CHANGE PRIOR TO LOADNG THE INDICATOR
+show_color_bars  = input.bool
+ (
+ defval = true, 
+ title = 'Color Code Indicator Bars?', 
+ confirm = true,
+ tooltip =
+ 'This will INTENTIONALLY overwrite the ACTUAL bar color. Red could turn green and green could turn red etc. This setting can be turned ON / OFF at any time under Inputs. It is NOT required for this indicator to work properly, however it is VERY helpful in spotting trends. Wicks and outlines will remain the true color.'
+ )
+
+//Williams%R 
+
+upper_area = input.int
+ (
+ defval = -20, 
+ minval=-49, 
+ maxval=0, 
+ title='Upper Level Band',
+ tooltip = 'Based on standard Williams%R, best to choose a number between -8 and -20, anythign else will be an outlier.'
+ )
+lower_area = input.int
+ (
+ defval = -80, 
+ maxval=-51, 
+ minval=-100, 
+ title='Lower Level Band',
+ tooltip = 'Based on standard Williams%R, best to choose a number between -92 and -80, anythign else will be an outlier.'
+ )
+highlight_williams_ema_cross = input.bool
+ (
+ defval = true, 
+ title='Plot Potential Trend Weakness? (Circles)',
+ tooltip = 'Will plot small Teal Color Circles when trend weakness is forming (Weakening Bull Trend signals will show up in the GREEN area and weakening Bear Trend signals will show up in the MAROON area). These are good for determining TAKE PROFIT levels. (Move stoploss or think about taking some profit).'
+ )
+//bool BGcoloring = false //input(defval=false, title='Turn ON background coloring?')
+//custom_transparency = input(100, title='Background color custom_transparency [%]')
+
+//Begin Kijun Script 
+int kijun_sen_base_period = (26)
+nnamdert(len) =>
+    math.avg(ta.lowest(len), ta.highest(len))
+kijun_base_line = nnamdert(kijun_sen_base_period)
+green_candle = open < close
+red_candle = open > close
+kijun_p_open = open
+kijun_p_close = close
+kijun_bull = (kijun_p_open > kijun_base_line) and green_candle
+kijun_bull_early_warning = (kijun_p_close > kijun_base_line) and not (kijun_p_open > kijun_base_line) and green_candle
+kijun_bear = (kijun_p_open < kijun_base_line) and red_candle
+kijun_bear_early_warning = (kijun_p_close < kijun_base_line) and not (kijun_p_open < kijun_base_line) and red_candle
+kijun_neutral = (kijun_p_open == kijun_base_line)
+//End Kijun Script
+
+//Plot
+
+band1 = hline
+ (
+ upper_area, 
+ title='Band recent_highestline', 
+ linestyle=hline.style_dashed, 
+ linewidth=1, 
+ color=color.green
+ )
+band0 = hline
+ (
+ lower_area, 
+ title='Band bottomline', 
+ linestyle=hline.style_dashed, 
+ linewidth=1, 
+ color=color.red
+ )
+recent_highest_hline = hline
+ (
+ 0, 
+ title='recent_highest H Line', 
+ linestyle=hline.style_solid, 
+ linewidth=1, 
+ color=color.green
+ )
+
+middle_hline = hline
+ (
+ center_line, 
+ title='Middle H Line', 
+ linestyle=hline.style_solid, 
+ linewidth=1, 
+ color=color.yellow
+ )
+
+recent_lowest_hline = hline
+ (
+ -100, 
+ title='recent_lowest H Line', 
+ linestyle=hline.style_solid, 
+ linewidth=1, 
+ color=color.red
+ )
+fill
+ (
+ band1, 
+ band0, 
+ color=color.new(color.white, 100), 
+ title='Inner band'
+ )
+
+//plotchar(williamsr_calc >= upper_area ? 0 : na, title = 'Bullish', char='🚀', location = location.abovebar)
+plot
+ (
+ (williamsr_calc >= upper_area) 
+ and (kijun_bull 
+ or kijun_bull[1]) 
+ ? 0 
+ : na, 
+ title='bullrun', 
+ color=color.new(color.green, 20), 
+ style=plot.style_circles, 
+ linewidth=2
+ )
+plot
+ (
+ (williamsr_calc <= lower_area) 
+ and (kijun_bear 
+ or kijun_bear[1])
+ ? -100 
+ : na, 
+ title='bearish', 
+ color=color.new(color.red, 20), 
+ style=plot.style_circles, 
+ linewidth=2
+ )
+bullish = (williamsr_calc >= center_line) and (williamsr_calc >= williamsr_ema) and (kijun_bull)
+bullish_early_warning = (williamsr_calc >= center_line) and (williamsr_calc >= williamsr_ema) and (kijun_bull_early_warning)
+plot(
+ bullish and not bullish[1]
+ ? -50 
+ : na, 
+ title='bullrun', 
+ color=color.new(color.lime, 0), 
+ style=plot.style_cross, 
+ linewidth=5
+ )
+plot(
+ bullish_early_warning and not bullish_early_warning[1]
+ ? -50 
+ : na, 
+ title='bullrun early warning', 
+ color=color.new(color.blue, 50), 
+ style=plot.style_cross, 
+ linewidth=4
+ )
+bearish = (williamsr_calc <= center_line) and (williamsr_calc <= williamsr_ema) and (kijun_bear)
+bearish_early_warning = (williamsr_calc <= center_line) and (williamsr_calc <= williamsr_ema) and (kijun_bear_early_warning)
+plot(
+ bearish and not bearish[1]
+ ? -50 
+ : na, 
+ title='bearish', 
+ color=color.new(color.red, 0), 
+ style=plot.style_cross, 
+ linewidth=5
+ )
+plot(
+ bearish_early_warning and not bearish_early_warning[1]
+ ? -50 
+ : na, 
+ title='bearish early warning', 
+ color=color.new(color.orange, 50), 
+ style=plot.style_cross, 
+ linewidth=4
+ )
+plot(
+ highlight_williams_ema_cross and ta.cross(williamsr_calc, williamsr_ema) 
+ and williamsr_ema >= upper_area
+ ? williamsr_ema 
+ : na, 
+ title='Overbought cross', 
+ color=color.new(#42f7fd, 0), 
+ style=plot.style_circles, 
+ linewidth=3
+ )
+plot(
+ highlight_williams_ema_cross and ta.cross(williamsr_calc, williamsr_ema) 
+ and williamsr_ema <= lower_area
+ ? williamsr_ema 
+ : na, 
+ title='Oversold cross', 
+ color=color.new(#42f7fd, 0), 
+ style=plot.style_circles, 
+ linewidth=3
+ )
+
+plot(
+ highlight_williams_ema_cross and ta.cross(williamsr_calc, williamsr_ema) 
+ and williamsr_ema >= upper_area
+ or highlight_williams_ema_cross 
+ and ta.cross(williamsr_calc, williamsr_ema) 
+ and williamsr_ema <= lower_area ? williamsr_ema : na, 
+ title='Cross center', 
+ color=color.new(color.white, 80), 
+ style=plot.style_circles, 
+ linewidth=2
+ )
+
+//bgcolor(
+ //BGcoloring 
+ //? williamsr_ema[0] > williamsr_ema[1] 
+ //? color.new(color.green, 100) 
+ //: color.new(color.red, 100) 
+ //: na
+ //)
+
+trendBearish = 
+ williamsr_calc <= -60
+
+trendBullish = 
+ williamsr_calc >= -40
+
+nottrending = 
+ (williamsr_calc > -50 and williamsr_calc < williamsr_ema) 
+ or (williamsr_calc < -50 and williamsr_calc > williamsr_ema)
+
+neutral_lines =
+ (PaintneutralZones and nottrending) 
+
+neutral_fills = 
+ (FillneutralZZones and nottrending) 
+
+neutral_bars =
+ (show_color_bars and nottrending)
+
+alertcondition(bullish, title = 'Bullish Signal', message = 'Bullish Movement Detected')
+alertcondition(bullish_early_warning, title = 'Bullish Early Warning', message = 'Potential Bullish Movement Detected')
+alertcondition(bearish, title = 'Bearish Signal', message = 'Bearish Movement Detected')
+alertcondition(bearish_early_warning, title = 'Bearish Early Warning', message = 'Potential Bearish Movement Detected')
+//Plot Extremes
+recent_lowest_extreme = plot(-100, color=color.new(color.white, 100))
+recent_highest_extreme = plot(0, color=color.new(color.white, 100))
+invis_upper_area = plot(upper_area, color=color.new(color.white, 100))
+invis_lower_area = plot(lower_area, color=color.new(color.white, 100))
+fill( recent_highest_extreme, invis_upper_area, color = color.new(color.lime, 85))
+fill( recent_lowest_extreme, invis_lower_area, color = color.new(color.maroon, 85))
+
+//BEGIN COLOR CODE BARS
+barcolor(                                                                                                                                     
+ not show_color_bars ? na 
+ : show_color_bars and neutral_bars ? color.new(color.yellow, 50)
+ : show_color_bars and bullish and trendBullish ? color.new(color.lime, 0) 
+ : show_color_bars and bearish and trendBearish ? color.new(#FF0A01, 0)//#fc43d4, 0)
+ : show_color_bars and trendBullish ? color.new(color.green, 30) 
+ : show_color_bars and trendBearish ? color.new(color.red, 30) 
+ : na, 
+ title = 'Bar Colors'
+ )  
+//BEGIN COLOR CODE LINES
+//Plot the BLUE William%R line with color code
+Will = plot(
+ williamsr_calc, color = neutral_lines ? color.new(#effc43, 45) 
+ : trendBearish ? color.new(#fd4242, 65)  
+ : trendBullish ? color.new(color.lime, 65)  
+ : na, 
+ title = 'Line Colors',
+ style=plot.style_line, 
+ linewidth=1, 
+ trackprice=true, 
+ display=display.all
+ )
+EMA = plot(
+ williamsr_ema, color = neutral_lines ? color.new(#effc43, 68) 
+ : trendBearish ? color.new(#fd4242, 85)  
+ : trendBullish ? color.new(color.lime, 85)  
+ : na, 
+ title = 'Line Colors',
+ style=plot.style_line, 
+ linewidth=1, 
+ trackprice=true, 
+ display=display.all
+ )
+//BEGIN COLOR CODE FILLS
+fill(
+ Will, EMA, color=neutral_fills ? color.new(color.yellow, 65) 
+ : trendBearish ? color.new(color.red, 85) 
+ : trendBullish ? color.new(color.lime, 85)
+ : na,
+ title = 'Fill Colors')
+weakening_bull = ta.cross(williamsr_calc, williamsr_ema) and williamsr_ema >= upper_area
+alertcondition(weakening_bull, title = 'Weakening Bull Trend Signal', message = 'Bull Trend Potentially Weakening')
+weakening_bear = ta.cross(williamsr_calc, williamsr_ema) and williamsr_ema <= lower_area
+alertcondition(weakening_bear, title = 'Weakening Bear Trend Signal', message = 'Bear Trend Potentially Weakening')

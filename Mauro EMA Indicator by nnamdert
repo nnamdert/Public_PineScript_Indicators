@@ -1,0 +1,51 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+indicator('Mauro EMA\'s', shorttitle='MEMA', overlay=true)
+Mustard_Len = input.int(5, minval=1, title = 'Mustard EMA Length')
+Ketchup_Len = input.int(13, minval=1, title = 'Ketchup EMA Length')
+Water_Len = input.int(50, minval=1, title = 'Water EMA Length')
+Mayo_Len = input.int(200, minval=1, title = 'MAY EMA')
+BlueBerry_Len = input.int(800, minval=1, title = 'Blueberry EMA')
+Mustard_EMA = ta.ema(close, Mustard_Len)
+Ketchup_EMA = ta.ema(close, Ketchup_Len)
+Water_EMA = ta.ema(close, Water_Len)
+Mayo_EMA = ta.ema(close, Mayo_Len)
+BlueBerry_EMA = ta.ema(close, BlueBerry_Len)
+Mustard_Plot = plot(Mustard_EMA, title='EMA1', color=color.new(color.yellow, 0))
+Ketchup_Plot = plot(Ketchup_EMA, title='EMA2', color=color.new(color.red, 0))
+Water_Plot = plot(Water_EMA, title='EMA3', color=color.new(color.blue, 0))
+Mayo_Plot = plot(Mayo_EMA, title='EMA4', color= color.new(color.white, 0))
+BlueBerry_Plot = plot(BlueBerry_EMA, title='EMA4', color=color.new(color.purple, 0))
+
+Nombre = input('NNAMDERT', title='WaterMark')
+vcolor = input(color.new(color.white, 95), title='Color')
+
+a = label.new(bar_index, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(a[1])
+
+b = label.new(bar_index - 50, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(b[1])
+
+c = label.new(bar_index - 150, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(c[1])
+
+d = label.new(bar_index - 500, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(d[1])
+
+e = label.new(bar_index - 1000, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(e[1])
+
+f = label.new(bar_index - 1500, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(f[1])
+
+g = label.new(bar_index - 2000, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(g[1])
+
+h = label.new(bar_index - 4000, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(h[1])
+
+i = label.new(bar_index - 6000, high, Nombre, textcolor=vcolor, style=label.style_none, yloc=yloc.price, size=size.huge)
+label.delete(i[1])
+

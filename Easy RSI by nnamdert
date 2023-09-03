@@ -1,0 +1,132 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+indicator("Easy RSI by nnam", overlay = true)
+
+//BEGIN GET USER INPUTS=========================================================================================================//
+color_bars = input.bool(                                                                                                        //
+ defval = true,                                                                                                                 //
+ title ='Color Code Bars?',                                                                                                     //
+ tooltip = 'Selecting this Box will Color Code Bars'                                                                            //
+ )                                                                                                                              //
+show_current_price_label = input.bool(                                                                                          //
+ defval = true,                                                                                                                 //
+ title ='Show Current Price on Chart?',                                                                                         //
+ tooltip = 'Selecting this Box will plot the realtime price on the chart'                                                       //
+ )                                                                                                                              //
+plot_rsi_labels = input.bool(                                                                                                   //
+ defval = true,                                                                                                                 //
+ title ='Plot current RSI Value on Chart?',                                                                                     //
+ tooltip = 'Selecting this Box will plot the current RSI Value on the chart'                                                    //
+ )                                                                                                                              //
+plot_obos_labels = input.bool(                                                                                                  //
+ defval = true,                                                                                                                 //
+ title ='Plot RSI Overbought and Oversold Alerts on Chart?',                                                                    //
+ tooltip = 'Selecting this Box will plot Realtime RSI Oversold and Overbought condition alerts on the chart'                    //
+ )                                                                                                                              //
+rsi_oversold_condition = input.int(                                                                                             //
+ defval = 15,                                                                                                                   //
+ title = 'Set Oversold Condition',                                                                                              //
+ tooltip = 'Default is usually 30'                                                                                              //
+ )                                                                                                                              //
+rsi_overbought_condition = input.int(                                                                                           //
+ defval = 85,                                                                                                                   //
+ title = 'Set Overbought Condition',                                                                                            //
+ tooltip = 'Default is usually 70'                                                                                              //
+ )                                                                                                                              //
+rsi_Length = input.int(                                                                                                         //
+ defval = 6,                                                                                                                    //
+ title = 'RSI Length',                                                                                                          //
+ tooltip = 'RSI Length - Default is usually 14, use 6 for volatile assets'                                                      //
+ )                                                                                                                              //
+rsi_source = input(                                                                                                             //
+ defval = close,                                                                                                                //  
+ title = 'RSI Source',                                                                                                          //
+ tooltip = ' RSI Source - Default is Close'                                                                                     //
+ )                                                                                                                              //
+Bullish_RSI = input.color(                                                                                                      //
+ defval = #02ff02,                                                                                                            //
+ title = 'Bullish RSI Color',                                                                                                   //
+ tooltip = 'Color for Bullish RSI moves'                                                                                        //
+ )                                                                                                                              //
+Bearish_RSI = input.color(                                                                                                      // 
+ defval = #ff0000,                                                                                                            //
+ title = 'Bearish RSI Color',                                                                                                   //
+ tooltip = 'Color for Bearish RSI moves'                                                                                        //
+ )                                                                                                                              //
+rsi = ta.rsi(close, rsi_Length)                                                                                                 //
+rsi_bar_color = color.from_gradient(rsi, rsi_oversold_condition, rsi_overbought_condition, Bearish_RSI, Bullish_RSI)            //   
+//BEGIN BAR COLOR SCRIPT========================================================================================================// 
+Color_The_Bars = rsi_bar_color                                                                                                  //
+barcolor(color_bars ? Color_The_Bars : na)                                                                                      //
+//BEGINPRICELABELSCRIPT=========================================================================================================//
+var label overbought_label1 = na                                                                                                // 
+var label oversold_label1 = na                                                                                                  //
+value_high = ta.rsi(close, rsi_Length) >= rsi_overbought_condition                                                              //   
+value_low = ta.rsi(close, rsi_Length) <= rsi_oversold_condition                                                                 //
+//BEGIN OVERBOUGHT AND OVERSOLD CONDITIONS======================================================================================//
+//OVERBOUGHT                                                                                                                    //
+midpoint_for_OB = (ta.highest(close, 30) + ta.lowest(close, 30)) / 2                                                            //
+if barstate.isrealtime and plot_obos_labels and value_high                                                                      //
+    overbought_label1 := label.new(bar_index+10, midpoint_for_OB,                                                               //
+     text="Overbought: \n" + str.tostring(rsi),                                                                                 //
+     style=label.style_none,                                                                                                    //
+     color=color.new(color.red, 0),                                                                                           // 
+     textcolor=color.new(color.red, 0),                                                                                       //
+     xloc=xloc.bar_index,                                                                                                       //
+     yloc=yloc.price,                                                                                                           //
+     textalign=text.align_left)                                                                                                 // 
+    label.delete(overbought_label1[1])                                                                                          //
+//OVERSOLD                                                                                                                      //
+midpoint_for_OS = (ta.highest(close, 30) + ta.lowest(close, 30)) / 2                                                            //
+if barstate.isrealtime and plot_obos_labels and value_low                                                                       //
+    oversold_label1 := label.new(bar_index+10, midpoint_for_OS,                                                                 //
+     text="Oversold: \n" + str.tostring(rsi),                                                                                   //
+     style=label.style_none,                                                                                                    //
+     color=color.new(color.lime, 0),                                                                                          //
+     textcolor=color.new(color.lime, 0),                                                                                      //
+     xloc=xloc.bar_index,                                                                                                       //
+     yloc=yloc.price,                                                                                                           //
+     textalign=text.align_left)                                                                                                 //
+    label.delete(oversold_label1[1])                                                                                            //
+//END CONDITION LABELS==========================================================================================================//
+//ADD CURRENT PRICE LABEL                                                                                                       //
+//BEGIN PRICE LABEL script Code=================================================================================================//
+var priceArray = array.new_float(0)                                                                                             //
+array.push(priceArray, close)                                                                                                   //
+size = array.size(priceArray)                                                                                                   //
+price = array.get(priceArray, size -1)                                                                                          //
+//                                                                                                                              //
+//LABEL script for OPTIONAL PRICE LABEL=========================================================================================//
+label pricelabel = na                                                                                                           //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and show_current_price_label                                                                                 //
+    pricelabel := label.new(bar_index,                                                                                          //
+     y=0,                                                                                                                       //
+     yloc=yloc.abovebar,                                                                                                        //
+     color = color.new(color.yellow, 0),                                                                                      //
+     style = label.style_none, //style_none,                                                                                    //
+     text="Current Price:\n" + str.tostring(array.get(priceArray, size -1)),                                                    //
+     textcolor = color.new(color.blue, 0))                                                                                    //
+    label.delete(pricelabel[1])                                                                                                 //
+//==============END SCRIPT======================================================================================================//
+//BEGIN RSI Label script Code===================================================================================================//
+var rsiArray = array.new_float(0)                                                                                               //
+array.push(rsiArray, rsi)                                                                                                       //
+rsi_size = array.size(rsiArray)                                                                                                 //
+rsi_value = array.get(rsiArray, size -1)                                                                                        //
+//                                                                                                                              //
+//LABEL script for OPTIONAL PRICE LABEL=========================================================================================//
+label rsilabel = na                                                                                                             //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and plot_rsi_labels                                                                                          //
+    rsilabel := label.new(bar_index,                                                                                            //
+     y=0,                                                                                                                       //
+     yloc=yloc.belowbar,                                                                                                        //
+     color = color.new(color.yellow, 0),                                                                                      //
+     style = label.style_none,                                                                                                  //
+     text="\n\nCurrent \nRSI\nValue:\n" + str.tostring(array.get(rsiArray, size -1)),                                           //
+     textcolor = color.new(color.blue, 0))                                                                                    //
+    label.delete(rsilabel[1])                                                                                                   //
+//==============END SCRIPT======================================================================================================//

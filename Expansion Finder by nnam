@@ -1,0 +1,27 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+indicator(title="Expansion Finder by nnam", overlay = true, max_bars_back = 500)
+
+range_to_calculate = input.int(defval = 14, title = 'Range of bars to calculate average', tooltip = 'default is 14')
+expansion_multiplier = input.float(defval = 1.2, title = 'Expansion Multiplier', step = 0.1, tooltip = 'default is 1.2')
+expansion_color = input.color(color.new(color.maroon, 0), title = 'Expansion Color')
+contraction_color = input.color(color.new(color.teal, 0), title = 'Contraction Color')
+contraction_bar_color = input.color(color.new(#7babd1, 0), title = 'Contraction Bar Color')
+bar_color = input.color(color.new(color.yellow, 0), title = 'Expansion Bar Color')
+BarRange() =>
+	high - low
+avgRange = ta.ema(BarRange(), range_to_calculate)
+rangeColor = if BarRange() > (avgRange * expansion_multiplier)
+    expansion_color
+else
+    contraction_color
+
+
+barcolor(BarRange() > (avgRange * expansion_multiplier) ? color.new(bar_color, 0) : color.new(contraction_bar_color, 0))
+//for overlay - false
+//plot(BarRange(), style=plot.style_columns, 
+//     color=color.new(rangeColor, 30), title="Bar Range")
+//plot(avgRange, color=color.orange, linewidth=1, title="Average Range")
+

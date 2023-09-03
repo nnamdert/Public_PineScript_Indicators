@@ -1,0 +1,318 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+//03/27/2023
+//@version=5
+indicator(title="Reversal Finder by nnam", overlay = true, precision=2, max_lines_count = 500)//, scale=scale.left)
+
+//HANDLES MAX_LINES_COUNTS ISSUE================================================================================================//
+lineLimitInput = input.int(                                                                                                     //
+ defval = 8,                                                                                                                    //
+ title = 'Max Lines to Show on the Chart',                                                                                      // 
+ tooltip = 'Adjust this number to increase or decrease the total number of lines seen on the chart. (ONLY this indicator)',     //
+ group = 'Line Settings'                                                                                                        //
+ )                                                                                                                              //
+if array.size(line.all) > lineLimitInput                                                                                        //
+    for i = 0 to array.size(line.all) - lineLimitInput - 1                                                                      //
+        line.delete(array.get(line.all, i))                                                                                     //
+//END MAX_LINES_COUNTS ISSUE====================================================================================================//
+hide_big_label = input.bool(                                                                                                    //
+ defval = false,                                                                                                                //
+ title = 'Hide Label?',                                                                                                         //
+ tooltip =                                                                                                                      //  
+ 'Checking this box will hide the large RSI Value Label located at the current bar index. You can turn the label ON or OFF at any time using this checkbox'//
+ )                                                                                                                              // 
+confirmed_or_realtime = input.bool(                                                                                             //
+ defval = false,                                                                                                                //
+ title = 'Show only Realtime Reversal Lines?',                                                                                  //
+ tooltip =                                                                                                                      //  
+ 'Checking the box will ensure the indicator only plots realtime reversals.This could cause early false signals.'               //
+ ) ? barstate.isrealtime : barstate.isconfirmed                                                                                 // 
+show_bearish_lines = input.bool(                                                                                                //
+ defval = true,                                                                                                                 //
+ title = 'Show Bearish Reversal Lines on the Chart?',                                                                           //
+ tooltip = 'Checking this box will show Bearish Reversal lines on the chart.',                                                  //
+ group = 'Line Settings - Bearish Lines')                                                                                       //
+extend_bearish_lines = input.bool(                                                                                              //
+ defval = false,                                                                                                                //
+ title = 'Extend Bearish Reversal Lines to the right?',                                                                         //
+ tooltip = 'Checking this box will extend the current Bearish lines on the chart to the right',                                 //
+ group = 'Line Settings - Bearish Lines'                                                                                        //
+ ) ? extend.right : extend.none                                                                                                 // 
+bearish_line_color = input.color(                                                                                               //
+ color.new(color.red, 0),                                                                                                     //
+ title = 'Bearish Reversal Line Color',                                                                                         //
+ group = 'Line Settings - Bearish Lines'                                                                                        //
+ )                                                                                                                              //  
+short_line_width = input.int(                                                                                                   //
+ defval = 2,                                                                                                                    //
+ title = 'Bearish Reversal Line Width',                                                                                         //
+ tooltip = 'This setting will adjust the width of the Bearish Reversal Line',                                                   //
+ group = 'Line Settings - Bearish Lines'                                                                                        //
+ )                                                                                                                              // 
+show_bullish_lines = input.bool(                                                                                                //
+ defval = true,                                                                                                                 //
+ title = 'Show Bullish Reversal Lines on the Chart?',                                                                           //
+ tooltip = 'Checking this box will show Bullish Reversal lines on the chart.',                                                  //
+ group = 'Line Settings - Bullish Lines')                                                                                       //
+extend_bullish_lines = input.bool(                                                                                              //
+ defval = false,                                                                                                                //
+ title = 'Extend Bullish Reversal Lines to the right?',                                                                         //
+ tooltip = 'Checking this box will extend the current Bullish lines on the chart to the right',                                 //
+ group = 'Line Settings - Bullish Lines'                                                                                        //
+ ) ? extend.right : extend.none                                                                                                 // 
+bullish_line_color = input.color(                                                                                               //
+ color.new(color.green, 0),                                                                                                   //
+ title = 'Bullish Reversal Line Color',                                                                                         //
+ group = 'Line Settings - Bullish Lines')                                                                                       //  
+long_line_width = input.int(                                                                                                    //
+ defval = 2,                                                                                                                    //
+ title = 'Bullish Reversal Line Width',                                                                                         //
+ tooltip = 'This setting will adjust the width of the Bullish Reversal Line',                                                   //
+ group = 'Line Settings - Bullish Lines'                                                                                        //
+ )                                                                                                                              // 
+//BEGIN USER INPUTS=============================================================================================================//
+rsi_source = input.source(close, title="RSI Source", group = 'RSI Settings')                                                    //
+rsiLength = input.int(6, title="RSI Length", group = 'RSI Settings')                                                            //
+obLevelinput = input.float(85, title="Overbought Level", group = 'RSI Settings')                                                //
+osLevelinput = input.float(15, title="Oversold Level", group = 'RSI Settings')                                                  //
+color_code_bars = input.bool(                                                                                                   //
+ defval = true,                                                                                                                 // 
+ title = 'Turn On Custom Color Coded Bars Feature?',                                                                            //
+ tooltip =                                                                                                                      //
+ 'Checking this box will override the Tradingview Standard Bar Colors and may also interfere with other indicators\' custom bar colors if they are used by that indicator. This is an "Optional Setting", but the indicator works better with it ON. These can be turned ON or OFF at any time under Inputs.',
+ group = 'Bar Color Settings',                                                                                                  //
+ confirm = true                                                                                                                 //
+ )                                                                                                                              //
+obColor = input.color(color.green, title="Positive Color Gradient", group = 'Bar Color Settings')                             //
+osColor = input.color(color.red, title="Negative Color Gradient", group = 'Bar Color Settings')                               //
+oversold_color = input.color(color.rgb(248, 0, 165) , title="Oversold Bar Color", group = 'Bar Color Settings')               //
+overbought_color = input.color(color.yellow, title="Overbought Bar Color", group = 'Bar Color Settings')                      //
+use_stochastic = input.bool(                                                                                                    //
+ defval = false,                                                                                                                //
+ title = 'Use Stochastic confirmation for signals',                                                                             //
+ tooltip = 'This may produce less signals, but uses Stochastic as confirmation'                                                 // 
+ )                                                                                                                              //            
+kInput = input.int(14, title = 'Stochastic K length')                                                                           //
+dInput = input.int(3, title = 'Stochastic D Length')                                                                            //
+bearish_confirmed_line_color = input.color(                                                                                     //
+ color.new(color.fuchsia, 0),                                                                                                 //
+ title = 'Bearish Reversal Color (w / stochastic)')                                                                             // 
+bullish_confirmed_line_color = input.color(                                                                                     //
+ color.new(color.green, 0),                                                                                                   //
+ title = 'Bullish Reversal Color (w / stochastic)')                                                                             // 
+//BEGIN RSI SCRIPT==============================================================================================================//
+rsiValue = ta.rsi(rsi_source, rsiLength)                                                                                        //
+overbought_rsi = rsiValue > obLevelinput                                                                                        //
+oversold_rsi = rsiValue < osLevelinput                                                                                          // 
+obLevel = obLevelinput - 0.1                                                                                                    //
+osLevel = osLevelinput + 0.1                                                                                                    //
+midlevel = (rsiValue <= obLevel) and (rsiValue >= osLevel)                                                                      //
+//BEGIN STOCHASTIC SCRIPT=======================================================================================================//
+stochastic = ta.stoch(close, high, low, kInput)                                                                                 //
+overbought_stochastic = stochastic > obLevelinput                                                                               //
+oversold_stochastic = stochastic < osLevelinput                                                                                 //
+//Signal Conditions=============================================================================================================//
+overbought = overbought_rsi and overbought_stochastic                                                                           //
+oversold = oversold_rsi and oversold_stochastic                                                                                 //
+potential_ob_reversal = rsiValue < (obLevelinput + (obLevelinput * .3)) //high[1] > high                                        //
+potential_os_reversal = rsiValue > (osLevelinput + (osLevelinput * .3)) //low[1] < low                                          //     
+overbought_reversal =                                                                                                           //
+ (overbought[1]                                                                                                                 //
+ and not overbought)                                                                                                            //                                                                  
+ and potential_ob_reversal                                                                                                      //
+oversold_reversal =                                                                                                             //
+ (oversold[1]                                                                                                                   //
+ and not oversold)                                                                                                              //                                                                    
+ and potential_os_reversal                                                                                                      //
+overbought_reversal_rsi =                                                                                                       //
+ (overbought_rsi[1]                                                                                                             //
+ and not overbought_rsi)                                                                                                        //                                                                  
+ and potential_ob_reversal                                                                                                      //
+oversold_reversal_rsi =                                                                                                         //
+ (oversold_rsi[1]                                                                                                               //
+ and not oversold_rsi)                                                                                                          //                                                                    
+//and potential_os_reversal                                                                                                     //
+//BEGIN OVERLAY = FALSE PLOTS===================================================================================================//
+//USE THE PLOTS BELOW TO SWITCH TO OVERLAY = FALSE                                                                              //
+//plot(stochastic, trackprice = true)                                                                                           //
+//plot(rsiValue, trackprice = true, color = color.new(color.purple, 0))                                                         //
+//hline(obLevelinput, color=#787B86, title="Overbought")                                                                        // 
+//hline(osLevelinput, color=#787B86, title="Oversold")                                                                          // 
+//END OVERLAY = FLASE PLOTS=====================================================================================================//
+//BEGIN BAR COLORS==============================================================================================================//
+gradientColour = color.from_gradient(not color_code_bars ? na : rsiValue, osLevel, obLevel, osColor, obColor)                   //
+barcolor(                                                                                                                       //
+ color_code_bars                                                                                                                //
+ and midlevel ? gradientColour                                                                                                  //
+ : na,                                                                                                                          //
+ title="Gradient Bar Color ON/OFF",                                                                                             // 
+ display = display.all,                                                                                                         //
+ editable = false                                                                                                               //
+ )                                                                                                                              //
+barcolor(color_code_bars and overbought ? overbought_color : na, display = display.all, editable = false)                       //
+barcolor(color_code_bars and oversold ? oversold_color : na, display = display.all, editable = false)                           //
+//END BAR COLORS================================================================================================================//
+//BEGIN OVERLAY = TRUE PLOTS====================================================================================================//
+plotshape(use_stochastic ?                                                                                                      //
+ oversold_reversal : na,                                                                                                        //
+ title = 'Potential Oversold Reversal Stochastic',                                                                              //
+ style = shape.arrowup,                                                                                                         //
+ location = location.belowbar,                                                                                                  //
+ color = color.new(color.orange, 0),                                                                                          //
+ size = size.small,                                                                                                             //
+ editable = false                                                                                                               //
+ )                                                                                                                              //
+plotshape(use_stochastic ?                                                                                                      //
+ overbought_reversal : na,                                                                                                      //
+ title = 'Potential Overbought Reversal Stochastic',                                                                            //                                     
+ style = shape.arrowdown,                                                                                                       //
+ location = location.abovebar,                                                                                                  //
+ color = color.new(color.orange, 0),                                                                                          //
+ size = size.small,                                                                                                             //
+ editable = false                                                                                                               //
+ )                                                                                                                              //
+plotshape(not use_stochastic ?                                                                                                  //
+ oversold_reversal_rsi : na,                                                                                                    //
+ title = 'Potential Oversold Reversal',                                                                                         //          
+ style = shape.arrowup,                                                                                                         //
+ location = location.belowbar,                                                                                                  //
+ color = color.new(color.yellow, 0),                                                                                          //
+ size = size.small,                                                                                                             //
+ editable = false                                                                                                               //
+ )                                                                                                                              //
+plotshape(not use_stochastic ?                                                                                                  //
+ overbought_reversal_rsi : na,                                                                                                  //
+ title = 'Potential Overbought Reversal',                                                                                       //              
+ style = shape.arrowdown,                                                                                                       //
+ location = location.abovebar,                                                                                                  //
+ color = color.new(color.yellow, 0),                                                                                          // 
+ size = size.small,                                                                                                             //
+ editable = false                                                                                                               //
+ )                                                                                                                              //
+var label rsi_label_bullish = na                                                                                                //
+if (rsiValue >= 50) and (rsiValue < obLevelinput) and not hide_big_label                                                        //
+    rsi_label_bullish := label.new(                                                                                             //
+     bar_index,                                                                                                                 //
+     high,                                                                                                                      //
+     text = "Bullish\n" + str.tostring(rsiValue),                                                                               //
+     textcolor = (color.black),                                                                                               //
+     color = (color.green),                                                                                                   //
+     style = label.style_label_upper_left                                                                                       //
+     )                                                                                                                          //
+label.delete(rsi_label_bullish[1])                                                                                              //
+//                                                                                                                              //
+var label rsi_label_bearish  = na                                                                                               //
+if (rsiValue <= 50) and (rsiValue > osLevelinput) and not hide_big_label                                                        //
+    rsi_label_bearish := label.new(                                                                                             //
+     bar_index,                                                                                                                 //
+     low,                                                                                                                       //
+     text = "Bearish\n" + str.tostring(rsiValue),                                                                               //
+     textcolor = (color.white),                                                                                               // 
+     color = (color.red),                                                                                                     // 
+     style = label.style_label_upper_left                                                                                       // 
+     )                                                                                                                          //
+label.delete(rsi_label_bearish[1])                                                                                              // 
+//                                                                                                                              //
+var label rsi_label_overbought = na                                                                                             //
+if (rsiValue >= obLevelinput) and not hide_big_label                                                                            //
+    rsi_label_overbought := label.new(                                                                                          //
+     bar_index,                                                                                                                 //
+     high,                                                                                                                      //
+     text = "Potential\nOverbought\nCondition\n" + str.tostring(rsiValue),                                                      // 
+     textcolor = (color.black),                                                                                               //
+     color = (color.lime),                                                                                                    // 
+     style = label.style_label_upper_left                                                                                       //
+     )                                                                                                                          //
+label.delete(rsi_label_overbought[1])                                                                                           //
+//                                                                                                                              //
+var label rsi_label_oversold = na                                                                                               //
+if (rsiValue <= osLevelinput) and not hide_big_label                                                                            //
+    rsi_label_oversold := label.new(                                                                                            //
+     bar_index,                                                                                                                 //
+     low,                                                                                                                       //
+     text = "Potential\nOversold\nCondition\n" + str.tostring(rsiValue),                                                        //
+     textcolor = (color.white),                                                                                               //
+     color = (color.maroon),                                                                                                  // 
+     style = label.style_label_upper_left                                                                                       //
+     )                                                                                                                          //
+label.delete(rsi_label_oversold[1])                                                                                             //
+//======================================================BEGIN LINES CODE========================================================//
+var line bullishline = na                                                                                                       //
+if confirmed_or_realtime and oversold_reversal_rsi and not use_stochastic and show_bullish_lines                                //
+    bullishline := line.new(                                                                                                    //
+     x1=bar_index,                                                                                                              //
+     y1=low[1],                                                                                                                 //
+     x2=bar_index+60,                                                                                                           //
+     y2=low[1],                                                                                                                 //
+     color = color.new(bullish_line_color, 0),                                                                                  //
+     width = long_line_width,                                                                                                   //
+     extend = extend_bullish_lines                                                                                              //
+     )                                                                                                                          // 
+    //line.delete(bullishline[1])                                                                                               //
+alertcondition(                                                                                                                 //
+ barstate.isrealtime                                                                                                            //
+ and oversold_reversal_rsi                                                                                                      //
+ and not use_stochastic,                                                                                                        //
+ title = 'Potential Bullish Reversal (Early Warning)',                                                                          //
+ message = 'Early warning of Potential Bullish Reversal'                                                                        //
+ )                                                                                                                              //
+alertcondition(                                                                                                                 //
+ barstate.isconfirmed                                                                                                           //
+ and oversold_reversal_rsi                                                                                                      //
+ and not use_stochastic,                                                                                                        //
+ title = 'Bullish Reversal Detection',                                                                                          //
+ message = 'Potential Bullish Reversal Pattern Detected'                                                                        //
+ )                                                                                                                              //
+var line bullishstochline = na                                                                                                  //
+if confirmed_or_realtime and oversold_reversal and use_stochastic and show_bullish_lines                                        //
+    bullishstochline := line.new(                                                                                               //
+     x1=bar_index,                                                                                                              //
+     y1=low[1],                                                                                                                 //
+     x2=bar_index+60,                                                                                                           //
+     y2=low[1],                                                                                                                 //
+     color = color.new(bullish_confirmed_line_color, 0),                                                                        //
+     width = long_line_width,                                                                                                   //
+     extend = extend_bullish_lines                                                                                              //
+     )                                                                                                                          // 
+    //line.delete(bullishstochline[1])                                                                                          //
+var line bearishline = na                                                                                                       //
+if confirmed_or_realtime and overbought_reversal_rsi and not use_stochastic and show_bearish_lines                              //
+    bearishline := line.new(                                                                                                    //
+     x1=bar_index,                                                                                                              //
+     y1=high[1],                                                                                                                //
+     x2=bar_index+60,                                                                                                           //
+     y2=high[1],                                                                                                                //
+     color = color.new(bearish_line_color, 0),                                                                                  //
+     width = short_line_width,                                                                                                  // 
+     extend = extend_bearish_lines                                                                                              //
+     )                                                                                                                          // 
+    //line.delete(bearishline[1])                                                                                               //
+alertcondition(                                                                                                                 //
+ barstate.isrealtime                                                                                                            //
+ and overbought_reversal_rsi                                                                                                    //
+ and not use_stochastic,                                                                                                        //
+ title = 'Potential Bearish Reversal (Early Warning)',                                                                          //
+ message = 'Early Warning of Potential Bearish Reversal'                                                                        //
+ )                                                                                                                              //
+alertcondition(                                                                                                                 //
+ barstate.isconfirmed                                                                                                           //
+ and overbought_reversal_rsi                                                                                                    //
+ and not use_stochastic,                                                                                                        //
+ title = 'Bearish Reversal Detection',                                                                                          //
+ message = 'Potential Bearish Reversal Pattern Detected'                                                                        //
+ )                                                                                                                              //
+var line bearishstochline = na                                                                                                  //
+if confirmed_or_realtime and overbought_reversal and use_stochastic and show_bearish_lines                                      //
+    bearishstochline := line.new(                                                                                               //
+     x1=bar_index,                                                                                                              //
+     y1=high[1],                                                                                                                //
+     x2=bar_index+60,                                                                                                           //
+     y2=high[1],                                                                                                                //
+     color = color.new(bearish_confirmed_line_color, 0),                                                                        //
+     width = short_line_width,                                                                                                  // 
+     extend = extend_bearish_lines                                                                                              //
+     )                                                                                                                          // 
+    //line.delete(bearishstochline[1])                                                                                          //
+//                                                      END LINES CODE                                                          //
+//END OVERLAY = TRUE PLOTS======================================================================================================//
+//END SCRIPT====================================================================================================================//

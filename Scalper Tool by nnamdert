@@ -1,0 +1,193 @@
+// © nnamdert
+
+THIS IS A COPYRIGHT INDICATOR - NOT FOR RESALE OR REUSE WITHOUT PERMISSION
+YOU MAY PURCHASE THE RIGHTS TO THIS INDICATOR - 1 time paymentPlease join my Discord and send me a message.
+
+//@version=5
+indicator("Scalper Tool by nnamdert", overlay = true)
+//                                                     USER INPUTS                                                         //
+//=========================================================================================================================//
+break_lines = input.bool(defval = true, title = 'Break Lines upon TP/SL',                                                  //
+ tooltip = ' Lines will discontinue if Stoploss or TakeProfit have been breached. If unchecked, they will continue')       //     
+median_length = input.int(defval = 34, title = 'MBMA Length')                                                              //
+show_value_line = input.bool(defval = false, title = 'Show Median Line?')                                                  //
+show_emas = input.bool(defval = false, title = 'Plot EMA on Chart?')                                                       //
+fastSMA_len = input.int(5)                                                                                                 //                                                                                      //
+slowSMA_len = input.int(50)                                                                                                //
+sl_atr = input.float(defval = 1.5,                                                                                         // 
+ title = 'Set Stoploss Level',                                                                                             //
+ step = 0.1,                                                                                                               //
+ tooltip = 'Set this to ensure you manage risk appropriately but do not get stopped out prematurely either.',              //
+ group = 'Set Stoploss First, then Take Profit. Set stoploss based on current ATR conditions',                             //
+ inline = 'tpsl'                                                                                                           //
+ )                                                                                                                         // 
+tpsl_ratio = input.float(defval = 1.5,                                                                                     //
+ title = 'Take Profit Ratio',                                                                                              //
+ step = 0.1, minval = 1.1,                                                                                                 //
+ tooltip = 'Must be more than 1. (Default is 1.5). 3 is optimal if price action shows your TP would trigger if set to 3',  //
+ group = 'Set Stoploss First, then Take Profit. Set stoploss based on current ATR conditions',                             //
+ inline = 'tpsl'                                                                                                           //
+ )                                                                                                                         //
+background_trasparency = input.int(defval = 70, title = 'Take Profit / Stop Loss background Transparency')                 //                                                                                   
+//=========================================================================================================================//
+//                                                      MEDIAN LINE                                                        //
+//=========================================================================================================================//
+//BEGIN MEDIAN LINE SCRIPT=================================================================================================//
+src = close                                                                                                                //
+src_high = high // if using high change src to src_high                                                                    //
+src_low = low // if using low change src to src_low                                                                        //
+//Middle Median Line                                                                                                       //
+arraySrc = array.new_float(0)                                                                                              //
+for i = 0 to median_length - 1 by 1                                                                                        //
+    array.push(arraySrc, src[i])   // src using close as the source                                                        //
+medianValue = array.median(arraySrc)                                                                                       //
+mbma = ta.sma(medianValue, median_length)                                                                                  //
+bull_mean_close = low > mbma                                                                                               //
+bear_mean_close = high < mbma                                                                                              // 
+//                   PLOT COLOR CODED MBMA ON THE CHART                                                                    //
+mbma_plot = plot(not show_value_line ? na : mbma,                                                                          //
+ color=bull_mean_close ? color.new(color.green, 0)                                                                       //
+ : bear_mean_close ? color.new(color.red, 0)                                                                             //
+ : color.new(color.yellow, 0),                                                                                           //
+ linewidth=2,                                                                                                              //
+ title='MBMA'                                                                                                              //
+ )                                                                                                                         //
+//long_trigger = ta.crossover(close, mbma)                                                                                 //                                                                                                         //
+//short_trigger = ta.crossunder(close, mbma)                                                                               //                          //
+//END MEDIAN LINE SCRIPT===================================================================================================//
+//                                            LONG AND SHORT CONDITIONS DEFINED                                            //
+//BEGIN DEFINE LONG SHORT CONDITIONS=======================================================================================//
+//    YOU CAN USE ANY LONG OR SHORT TRIGGER YOU WANT. FOR SIMPLICITY, THE LONG/SHORT TRIGGER IS SIMPLE EMA CROSS HERE.     //
+//         EXAMPLE: YOU CAN USE A CROSS OF THE MBMA MEDIAN ABOVE AS A TRIGGER OR ANY OTHER TRIGGER YOU LIST ABOVE.         //
+slowSMA = ta.sma(close, slowSMA_len)                                                                                       //
+fastSMA = ta.sma(close, fastSMA_len)                                                                                       //
+long_trigger = ta.crossover(fastSMA, slowSMA)   // what triggers a LONG condition                                          //
+short_trigger = ta.crossover(slowSMA, fastSMA)  // what triggers a SHORT condition                                         //
+//=========================================================================================================================//
+//                                            YOUR LONG SHORT CODES GO HERE                                                //
+//=========================================================================================================================//
+//        YOUR SCRIPT HERE                                                                                                 //
+//long_trigger = // what triggers a LONG condition in your script                                                          //
+//short_trigger = // what triggers a SHORT condition in your script                                                        //
+//=========================================================================================================================//
+atr = ta.atr(14) // used for stoploss multiplier                                                                           //
+//END DEFINE LONG SHORT CONDITIONS=========================================================================================//
+//                                       ENTRY TRIGGER                                                                     //
+tp_atr = (tpsl_ratio * sl_atr)                                                                                             //
+var trigger_price = 0.0                                                                                                    //
+var line entryline = na                                                                                                    //
+var label entrylabel = na                                                                                                  // 
+//                                         STOP LOSS                                                                       //
+var slprice = 0.0                                                                                                          //
+var line slline = na                                                                                                       // 
+var label sllabel = na                                                                                                     //
+//                                        TAKE PROFIT                                                                      //
+var tp1price = 0.0                                                                                                         //
+var line tp1line = na                                                                                                      //
+var label tp1label = na                                                                                                    //
+//                                     INITIATE LONG / SHORT CONDITIONS                                                    // 
+var long_condition = false                                                                                                 //
+var short_condition = false                                                                                                //
+//                                     IF LONG INITIATE LONG CONDITION                                                     //
+if long_trigger                                                                                                            //
+    long_condition := true                                                                                                 //
+    short_condition:= false                                                                                                //
+//                                     IF SHORT INITIATE SHORT CONDITION                                                   //
+if short_trigger                                                                                                           //
+    long_condition := false                                                                                                //   
+    short_condition := true                                                                                                //
+//                                     INITIATE ENTRY PRICE IF EITHER LONG OR SHORT TRIGGERS                               //
+if long_trigger or short_trigger                                                                                           //
+    trigger_price := close                                                                                                 //
+//                                     SET STOP LOSS AND TAKE PROFIT FOR LONG CONDITION                                    //                                                                                       
+if long_trigger                                                                                                            //
+    slprice := low - (sl_atr * atr)  // low - 50                                                                           //
+    tp1price := high + (tp_atr * atr)                                                                                      //
+//                                     SET STOP LOSS AND TAKE PROFIT FOR SHORT CONDITION                                   //
+if short_trigger                                                                                                           //
+    slprice := high + (sl_atr * atr)  // low - 50                                                                          //
+    tp1price := low -(tp_atr *atr)                                                                                         //
+//                                     INITIATE STOP LOSS AND TAKE PROFIT TRIGGERS                                         //                             
+var isTP1 = false                                                                                                          //
+var isSTOP = false                                                                                                         //
+//                                     SET TP 1 LINE BREAK IF TAKE PROFIT IS HIT                                           //
+if ta.cross(close, tp1price) and long_condition[1]                                                                         //
+     or ta.cross(close, slprice) and long_condition[1] and break_lines == true                                             //
+    isTP1 := true                                                                                                          //
+//                                     SET SL LINE BREAK IF STOP LOSS IS HIT                                               // 
+if ta.cross(close, slprice) and short_condition[1]                                                                         //
+     or ta.cross(close, tp1price) and short_condition[1] and break_lines == true                                           // 
+    isSTOP := true                                                                                                         //
+//                     REMOVE STOP LOSS AND TAKE PROFT IF NEW LONG OR SHORT CONDITION TRIGGERS                             //
+if long_trigger or short_trigger                                                                                           //
+    isTP1 := false                                                                                                         // 
+    isSTOP := false                                                                                                        //
+//=========================================================================================================================//
+//debug plots                                                                                                              //
+//plotshape(isTP1, color = color.yellow)                                                                                   // 
+//END TAKE PROFIT AND STOP LOSS============================================================================================//
+//                                                     LINES AND LABELS                                                    //
+//BEGIN LINES AND LABELS CONDITIONS========================================================================================//
+//                                        INITIATE EMPTY LINE FILLS FOR LATER USE                                          //
+var linefill line_fill_01 = na                                                                                             //
+var linefill line_fill_02 = na                                                                                             //
+//                           INITIATE ENTRY LINE, SL, AND TP DURING LONG OR SHORT CONDITION                                //
+if long_trigger or short_trigger                                                                                           //                        
+    entryline := line.new(bar_index, trigger_price, bar_index, trigger_price, color = color.new(color.yellow, 80))       //
+    //entrylabel := label.new(bar_index +5, trigger_price,                                                                 //
+    // text = 'Trigger \n Price \n ' + str.tostring(trigger_price, format = format.mintick),                               //
+    // style = label.style_label_left, color = color.yellow)                                                               //
+    //STOPLOSS FOR EITHER LONG OR SHORT POSITIONS                                                                          //
+    slline := line.new(bar_index, slprice, bar_index, slprice, color = color.new(color.maroon, 80))                      //
+    //sllabel := label.new(bar_index +5, slprice,                                                                          //
+    // text = 'Stoploss \n ' + str.tostring(slprice, format = format.mintick),                                             //
+    // style = label.style_label_left, color = color.maroon, textcolor = color.white)                                      //
+    //TAKEPROFIT 01 FOR EITHER LONG OR SHORT POSITIONS (ADD ANOTHER TP IF DESIRED [TP2LINE])                               //
+    tp1line := line.new(bar_index, tp1price, bar_index, tp1price, color = color.new(color.lime, 80))                     //
+    //tp1label := label.new(bar_index +5, tp1price,                                                                        // 
+    // text = 'TakeProfit \n ' + str.tostring(tp1price, format = format.mintick),                                          // 
+    // style = label.style_label_left, color = color.lime)                                                                 //
+    //DELTE LINES AND LABELS                                                                                               //
+    //line.delete(entryline[1])                                                                                            //
+    //label.delete(entrylabel[1])                                                                                          //
+//                                                                                                                         //    
+    //line.delete(slline[1])                                                                                               //
+    //label.delete(sllabel[1])                                                                                             //
+//                                                                                                                         // 
+    //line.delete(tp1line[1])                                                                                              //
+    //label.delete(tp1label[1])                                                                                            //
+//                                                          FILL LINES                                                     //       
+    line_fill_01 := linefill.new(entryline, slline, color = color.new(color.red, background_trasparency))                // 
+    line_fill_02 := linefill.new(entryline, tp1line, color = color.new(color.green, background_trasparency))             //
+//                                                                                                                         // 
+else                                                                                                                       //
+    if not isTP1 and not isSTOP                                                                                            //
+        line.set_x2(entryline, bar_index)                                                                                  //
+        label.set_x(entrylabel, bar_index)                                                                                 //
+    //SL LINES                                                                                                             //
+        line.set_x2(slline, bar_index)                                                                                     //
+        label.set_x(sllabel, bar_index)                                                                                    //  
+    //TP LINES                                                                                                             //
+        line.set_x2(tp1line, bar_index)                                                                                    // 
+        label.set_x(tp1label, bar_index)                                                                                   //
+//                                                              PLOTS                                                      //
+Fast_ema_plot = plot(show_emas ? fastSMA : na,                                                                             //
+ color=bull_mean_close ? color.new(color.green, 0)                                                                       //
+ : bear_mean_close ? color.new(color.red, 0)                                                                             //
+ : color.new(color.yellow, 0),                                                                                           //
+ linewidth=1,                                                                                                              //
+ title='EMA'                                                                                                               //
+ )                                                                                                                         //
+Slow_ema_plot = plot(show_emas ? slowSMA : na,                                                                             //
+ color=bull_mean_close ? color.new(color.green, 0)                                                                       //
+ : bear_mean_close ? color.new(color.red, 0)                                                                             //
+ : color.new(color.yellow, 0),                                                                                           //
+ linewidth=1,                                                                                                              //
+ title='EMA'                                                                                                               //
+ )                                                                                                                         //
+//plot(trigger_price)                                                                                                      //
+alertcondition(long_trigger, title = 'Long Entry', message = 'Potential Long Condition (TEST)')                            //
+alertcondition(short_trigger, title = 'Short Entry', message = 'Potential Short Condition (TEST)')                         //
+//=========================================================================================================================//
+//                                                         END SCRIPT                                                      //
+//=========================================================================================================================//

@@ -1,0 +1,306 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+//Feb 2023
+indicator(title="Simple STRAT Tool by nnam", overlay=true)
+//BEGIN Get User Inputs=========================================================================================================//
+//USER INPUTS FOR LINES                                                                                                         //
+show_prices = input.bool(                                                                                                       //
+ defval = true,                                                                                                                 //
+ title = 'Show Prices',                                                                                                         //
+ tooltip = 'If checked, the indicator will show prices on the chart.',                                                          //    
+ group = 'Price Settings'                                                                                                       //
+ )                                                                                                                              //
+show_current_price_label  = input.bool(                                                                                         //
+ defval = true,                                                                                                                 //
+ title = 'Show Live Current Price',                                                                                             //
+ tooltip = 'If checked, the indicator will display the current price on the chart.',                                            //    
+ group = 'Price Settings'                                                                                                       //
+ )                                                                                                                              //
+//USER INPUT TO ONLY SHOW INSIDE BAR BREAKOUTS                                                                                  // 
+onlyone = input.bool(                                                                                                           //
+ defval = false,                                                                                                                //
+ title = 'Trade Inside Bars ONLY',                                                                                              //
+ tooltip = 'If checked, the indicator will only look for INSDIDE bars and exclude other candles.',                              //    
+ group = 'Breakout Settings'                                                                                                    //
+ )                                                                                                                              //
+//BEGIN USER INPUTS BASIC LINE DISPLAY (show and extend lines etc.)=============================================================//
+show_lines = input.bool(                                                                                                        //
+ defval = true,                                                                                                                 //
+ title = 'Display Lines on Chart',                                                                                              //
+ tooltip = 'If this box is unchecked, NO lines will show on the chart - ALL lines will be hidden',                              //
+ group = 'Chart Display Settings - Show Lines / Extend Lines'                                                                   // 
+ )                                                                                                                              //
+extend_lines = input.bool(                                                                                                      //
+ defval = false,                                                                                                                //
+ title = 'Extend Lines',                                                                                                        //                                                                      //
+ tooltip = 'If this box is checked, lines will be EXTENDED to the right on the chart',                                          //
+ group = 'Chart Display Settings - Show Lines / Extend Lines'                                                                   // 
+ ) ? extend.both : extend.right                                                                                                 //
+//END USE INPUTS BASIC LINE DISPLAY (show and extend lines etc.)================================================================//
+//BEGIN Get User Inputs - BARS                                                                                                  //
+//BEGIN Get User Inputs - BAR COLORS                                                                                            //
+color_code_candles = input.bool(                                                                                                //
+ defval=true,                                                                                                                   //
+ title = 'Color Code the Candles',                                                                                              //
+ tooltip='Turn on Color Coded Candles. Expansion. Contraction, Bullish and Bearish Candles will be shaded as listed below.',    //
+ group = 'Set Color Coded Candle Colors'                                                                                        // 
+ )                                                                                                                              //
+inside_bar_color = input.color(                                                                                                 //  
+ defval = color.white,                                                                                                        //
+ title = 'Inside Bar',                                                                                                          //
+ tooltip = 'This is the color of the Strat Inside Bar - otherwise known as 1',                                                  //
+ group = 'Set Color Coded Candle Colors',                                                                                       //
+//inline = 'inside outside',                                                                                                    //
+ confirm = false)                                                                                                               //
+outside_bar_color = input.color(                                                                                                //
+ defval = color.yellow,                                                                                                       //
+ title = 'Outside Bar',                                                                                                         //
+ tooltip = 'This is the color of the Strat Outside Bar - otherwise known as 3',                                                 //
+ group = 'Set Color Coded Candle Colors',                                                                                       //
+//inline = 'inside outside',                                                                                                    //
+ confirm = false)                                                                                                               //
+twoup_bar_color = input.color(                                                                                                  //
+ defval = color.lime,                                                                                                         //
+ title = '2 UP Bar',                                                                                                            // 
+ tooltip = 'This is the color of the Strat 2 UP Bar',                                                                           //
+ group = 'Set Color Coded Candle Colors',                                                                                       // 
+//inline = 'twobars',                                                                                                           //
+ confirm = false)                                                                                                               //
+twodown_bar_color = input.color(                                                                                                //
+ defval = color.maroon,                                                                                                       //
+ title = '2 DOWN Bar',                                                                                                          //
+ tooltip = 'This is the color of the Strat 2 DOWN Bar',                                                                         //
+ group = 'Set Color Coded Candle Colors',                                                                                       //
+//inline = 'twobars',                                                                                                           //
+ confirm = false)                                                                                                               //
+//END BAR COLORS INPUT                                                                                                          //
+//BEGIN LINE COLORS INPUT                                                                                                       //
+current_bar_upper_color = input.color(                                                                                          //
+ defval = color.new(color.orange, 0),                                                                                         //
+ title = 'Current Bar Upper Line Color',                                                                                        //
+ tooltip = 'These are the colors for the lines of the current bar',                                                             //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'current_bar',                                                                                                        //
+ confirm = false                                                                                                                // 
+ )                                                                                                                              //
+current_bar_lower_color = input.color(                                                                                          //                 
+ defval = color.new(color.orange, 0),                                                                                         //
+ title = 'Current Bar Lower Line Color',                                                                                        //
+ tooltip = 'These are the colors for the lines of the current bar',                                                             //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'current_bar',                                                                                                        //
+ confirm = false                                                                                                                //
+ )                                                                                                                              //
+previous_bar_upper_color = input.color(                                                                                         //
+ defval = color.new(color.orange, 0),                                                                                         //
+ title = 'Previous Bar Upper Line Color',                                                                                       //
+ tooltip = 'These are the colors for the lines of the previous bar',                                                            //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'previous_bar',                                                                                                       //
+ confirm = false                                                                                                                //
+ )                                                                                                                              //
+previous_bar_lower_color = input.color(                                                                                         //           
+ defval = color.new(color.orange, 0),                                                                                         //
+ title = 'Previous Bar Upper Line Color',                                                                                       //
+ tooltip = 'These are the colors for the lines of the previous bar',                                                            //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'previous_bar',                                                                                                       //
+ confirm = false                                                                                                                //
+ )                                                                                                                              //
+one_only_bar_upper_color = input.color(                                                                                         //
+ defval = color.new(color.yellow, 0),                                                                                         //
+ title = 'Inside Bar Upper Line Color',                                                                                         //
+ tooltip = 'These are the colors for the lines when "Trade Inside Bars ONLY" is checked',                                       //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'inside_bar',                                                                                                         //
+ confirm = false                                                                                                                //
+ )                                                                                                                              //
+one_only_bar_lower_color = input.color(                                                                                         //  
+ defval = color.new(color.yellow, 0),                                                                                         //
+ title = 'Inside Bar Upper Line Color',                                                                                         // 
+ tooltip = 'These are the colors for the lines when "Trade Inside Bars ONLY" is checked',                                       //
+ group = 'High / Low Lines Settings',                                                                                           //
+ inline = 'inside_bar',                                                                                                         //
+ confirm = false                                                                                                                //
+ )                                                                                                                              //
+//END Get User Inputs - BAR COLORS                                                                                              //
+//Begin Bar Colors Script=======================================================================================================//
+barcolor(color_code_candles and (high > high[1] and low < low[1]) ?                                                             //
+ color.new(outside_bar_color, 0) : na, title = '3 Outside Bar')                                                                 //
+//                                                                                                                              //
+barcolor(color_code_candles and (high > high[1] and low >= low[1]) ?                                                            //
+ color.new(twoup_bar_color, 0) : na, title = '2 up')                                                                            //
+//                                                                                                                              //
+barcolor(color_code_candles and (high <= high[1] and low < low[1]) ?                                                            //
+ color.new(twodown_bar_color, 0) : na, title = '2 down')                                                                        //
+//                                                                                                                              //
+barcolor(color_code_candles and (high <= high[1] and low >= low[1]) ?                                                           //
+ color.new(inside_bar_color, 0) : na, title = '1 Inside Bar')                                                                   //                                                                                                                              //
+//End Bar Colors================================================================================================================//
+//                                                                                                                              //
+//Strat Calculations============================================================================================================// 
+green = close >= open                                                                                                           //
+red = close < open                                                                                                              //
+one = (high <= high[1]) and (low >= low[1])                                                                                     //
+twoUp = (high > high[1]) and (low >= low[1])                                                                                    //
+twoDown = (high <= high[1]) and (low < low[1])                                                                                  //
+three = (high > high[1]) and (low < low[1])                                                                                     //
+openTime = time                                                                                                                 //
+lowPrice = low                                                                                                                  //
+highPrice = high                                                                                                                //
+not_inside = (not twoUp and not twoDown and not three)                                                                          //
+//                                                                                                                              //
+//BEGINLINESSCRIPT==============================================================================================================//
+////THE LINES BELOW ARE FOR ALL CANDLES INCLUDING INSIDE, OUTSIDE, UP AND DOWN BARS=============================================//
+//Calculate and plot the highest high and lowest low for the previous bar (for all scenarios)                                   //
+highestHigh = ta.highest(high, 1)[1]                                                                                            //
+lowestLow   = ta.lowest(low, 1)[1]                                                                                              //
+//                                                                                                                              // 
+highestHigh_1 = ta.highest(high, 1)[2]                                                                                          //
+var line highestline_1 = na                                                                                                     //
+var line lowestline_1 = na                                                                                                      //
+//                                                                                                                              //
+var line lowline = na                                                                                                           //
+var line highline = na                                                                                                          //
+//                                                                                                                              // 
+var line insidehighline = na                                                                                                    //
+var line insidelowline = na                                                                                                     //
+//                                                                                                                              //
+lowestLow_1   = ta.lowest(low, 1)[2]                                                                                            //
+//Plot Lines                                                                                                                    //
+if highestHigh and barstate.islast and show_lines and onlyone and one == true                                                   //         
+    insidehighline := line.new(bar_index[1],                                                                                    //
+     highestHigh, bar_index,                                                                                                    //
+     highestHigh,                                                                                                               //
+     color = color.new(color.yellow, 0),                                                                                      //
+     extend=extend_lines)                                                                                                       //
+    line.delete(insidehighline[1])                                                                                              //
+else                                                                                                                            //
+    if highestHigh and barstate.islast and show_lines and not onlyone                                                           //
+        highline := line.new(bar_index[1],                                                                                      //
+         highestHigh, bar_index,                                                                                                //
+         highestHigh, color = color.new(#fdeb43, 0),                                                                          //
+         extend=extend_lines)                                                                                                   //
+        line.delete(highline)                                                                                                   //   
+//                                                                                                                              //
+if lowestLow and barstate.islast and show_lines and onlyone and one == true                                                     //
+    insidelowline := line.new(bar_index[1],                                                                                     //
+     lowestLow, bar_index,                                                                                                      //
+     lowestLow, color = color.new(color.yellow, 0),                                                                           //
+     extend = extend_lines)                                                                                                     //
+    line.delete(insidelowline[1])                                                                                               //
+else                                                                                                                            //
+    if lowestLow and barstate.islast and show_lines and not onlyone                                                             //
+        lowline := line.new(bar_index[1],                                                                                       //
+         lowestLow, bar_index,                                                                                                  //
+         lowestLow, color = color.new(#fdeb43, 0),                                                                            //
+         extend = extend_lines)                                                                                                 //
+        line.delete(lowline)                                                                                                    //
+//                                                                                                                              //
+//                                                                                                                              //
+//THE LINES BELOW ARE FOR ALL CANDLES INCLUDING INSIDE, OUTSIDE, UP AND DOWN BARS                                               //
+if highestHigh_1 and show_lines and not onlyone                                                                                 //
+    highestline_1 := line.new(bar_index[2],                                                                                     //
+     highestHigh, bar_index,                                                                                                    //
+     highestHigh, color = color.new(color.orange, 0),                                                                         // 
+     extend=extend_lines)                                                                                                       //
+    line.delete(highestline_1[2])                                                                                               // 
+else                                                                                                                            //
+    na                                                                                                                          //
+//                                                                                                                              //
+if lowestLow_1 and show_lines and not onlyone                                                                                   //
+    lowestline_1 := line.new(bar_index[2],                                                                                      // 
+     lowestLow, bar_index,                                                                                                      //
+     lowestLow, color = color.new(color.orange, 0),                                                                           //
+     extend = extend_lines)                                                                                                     //
+    line.delete(lowestline_1[2])                                                                                                //
+else                                                                                                                            //
+    na                                                                                                                          //
+//ENDLINESCRIPT=================================================================================================================//
+//BEGINPRICELABELSCRIPT=========================================================================================================//
+var label high_label1 = na                                                                                                      // 
+var label high_label2 = na                                                                                                      //
+var label low_label1 = na                                                                                                       //
+var label low_label2 = na                                                                                                       //
+value_high = high[1]                                                                                                            //   
+value_low = low[1]                                                                                                              //
+value_high_prev = high[2]                                                                                                       //
+value_low_prev = low[2]                                                                                                         //
+//High Label Inside Bar Only                                                                                                    //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and one and onlyone and show_prices                                                                          //
+    high_label1 := label.new(bar_index+4,                                                                                       //
+     y=value_high, text = str.tostring(value_high),                                                                             //
+     style = label.style_none,                                                                                                  //
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.orange)                                                                                                //
+    label.delete(high_label1[1])                                                                                                // 
+//Low Label Inside Bar Only                                                                                                     //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and one and onlyone and show_prices                                                                          //
+    low_label1 := label.new(bar_index+4,                                                                                        //
+     y=value_low, text = str.tostring(value_low),                                                                               //
+     style = label.style_none,                                                                                                  //
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.orange)                                                                                                //
+    label.delete(low_label1[1])                                                                                                 //
+//High Label for Inside Bar when not Inside Bar Only                                                                            //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and not onlyone and show_prices                                                                              // 
+    high_label1 := label.new(bar_index+4,                                                                                       //
+     y=value_high, text = str.tostring(value_high),                                                                             //
+     style = label.style_none,                                                                                                  // 
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.gray)                                                                                                  //
+    label.delete(high_label1[1])                                                                                                //
+//Low Label for Inside Bar when not Inside Bar Only                                                                             //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and not onlyone and show_prices                                                                              //
+    low_label1 := label.new(bar_index+4,                                                                                        //
+     y=value_low, text = str.tostring(value_low),                                                                               //
+     style = label.style_none,                                                                                                  //
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.gray)                                                                                                  //
+    label.delete(low_label1[1])                                                                                                 //                                                  
+//High Label Previous Bar                                                                                                       //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and not onlyone and show_prices                                                                              //
+    high_label2 := label.new(bar_index+9,                                                                                       //
+     y=value_high_prev,                                                                                                         //
+     text = str.tostring(value_high_prev),                                                                                      //
+     style = label.style_none,                                                                                                  // 
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.gray)                                                                                                  //
+    label.delete(high_label2[1])                                                                                                //
+//Low Label Previus Bar                                                                                                         //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        // 
+if barstate.islast and not onlyone and show_prices                                                                              //
+    low_label2 := label.new(bar_index+9,                                                                                        //
+     y=value_low_prev,                                                                                                          //
+     text = str.tostring(value_low_prev),                                                                                       //
+     style = label.style_none,                                                                                                  //
+     color = color.new(color.orange, 0),                                                                                      //
+     textcolor = color.gray)                                                                                                  //
+    label.delete(low_label2[1])                                                                                                 //
+//ADD CURRENT PRICE LABEL                                                                                                       //
+//BEGIN script Code=============================================================================================================//
+var priceArray = array.new_float(0)                                                                                             //
+array.push(priceArray, close)                                                                                                   //
+size = array.size(priceArray)                                                                                                   //
+price = array.get(priceArray, size -1)                                                                                          //
+//                                                                                                                              //
+//LABEL script for OPTIONAL PRICE LABEL=========================================================================================//
+label pricelabel = na                                                                                                           //
+//label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip, text_font_family)                        //
+if barstate.islast and show_current_price_label and show_prices                                                                 //
+    pricelabel := label.new(bar_index,                                                                                          //
+     y=0,                                                                                                                       //
+     yloc=yloc.abovebar,                                                                                                        //
+     color = color.new(color.yellow, 0),                                                                                      //
+     style = label.style_none, //style_none,                                                                                    //
+     text="Price:\n " + str.tostring(array.get(priceArray, size -1)),                                                           //
+     textcolor = color.new(color.blue, 0))                                                                                    //
+    label.delete(pricelabel[1])                                                                                                 //
+//==============END SCRIPT======================================================================================================//

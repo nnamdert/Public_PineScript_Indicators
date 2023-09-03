@@ -1,0 +1,275 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+
+//@version=5
+indicator("Contraction Finder by nnamdert", overlay = true, max_bars_back = 500)
+//=============================================================================================================================================//
+//                                                              USER INPUTS SECTION                                                            //
+//BEGIN GET USER INPUTS========================================================================================================================//
+length_setting = input.int(                                                                                                                    //
+ defval = 102,                                                                                                                                  //
+ title = 'Length',                                                                                                                             //
+ tooltip = '55 is a good default for breakout trading, 20 is good to find "potential" early breakouts (especially if trading Turtle Trades)',  //
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //              
+lookback_multiplier = input.int(                                                                                                               //
+ defval = 6,                                                                                                                                   //
+ title = 'Length Multiplier',                                                                                                                  //
+ tooltip = '1 if you only want to scalp breakouts. 2-4 finds contractions (the higher the length, the higher this # should be. 4-6 is good.)', //
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //              
+//=============================================================================================================================================//
+plot_high_low_lines = input.bool(                                                                                                              //
+ defval = false,                                                                                                                                //
+ title = 'Plot Hgh / Low Lines?',                                                                                                              //
+ tooltip = 'This simply turns ON/OFF the high / Low lines on the chart (highest high since the previous low is plotted and vice versa)',       //
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //
+extend_High_Low_lines = input.bool(                                                                                                            //
+ defval = false,                                                                                                                               //
+ title = 'Extend High / Low lines?',                                                                                                           //
+ tooltip = 'Extends High and Low Lines on the chart',                                                                                          //
+ group = 'GP1'                                                                                                                                 //
+ ) ? extend.both : extend.none                                                                                                                 //                    
+
+//=============================================================================================================================================//
+plot_labels = input.bool(                                                                                                                      //
+ defval = true,                                                                                                                                //
+ title = 'Plot Labels?',                                                                                                                       //
+ tooltip = 'Simply Plots the HIGH /LOW labels on the chart',                                                                                   //
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //
+//=============================================================================================================================================//
+plot_contraction_lines = input.bool(                                                                                                           //
+ defval = true,                                                                                                                                //
+ title = 'Plot Contraction lines?',                                                                                                            //
+ tooltip ='If on and a contraction is detected, diagonal lines will be plotted on the chart at the contraction forming a symmetrical triangle',//  
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //                    
+extend_contraction_lines = input.bool(                                                                                                         //
+ defval = false,                                                                                                                                //
+ title = 'Extend Contraction lines?',                                                                                                          //
+ tooltip = 'Extends symmetrical triangle lines if a contraction is found and Plot Contraction Lines is checked',                               //
+ group = 'GP1'                                                                                                                                 //
+ ) ? extend.right : extend.none                                                                                                                //                    
+//=============================================================================================================================================//
+plot_expansion_lines = input.bool(                                                                                                             //
+ defval = true,                                                                                                                                //
+ title = 'Plot Expansion Lines?',                                                                                                              //
+ tooltip = 'Coming Soon, this feature has not yet been implemented',                                                                           //
+ group = 'GP1'                                                                                                                                 //
+ )                                                                                                                                             //
+//END GET USER INPUTS==========================================================================================================================//
+//                                                                                                                                             //
+//                                   FIND LOWEST LOW SINCE RECENT HIGHEST HIGH WITHIN THE DEFINED LOOKBACK PERIOD                              //
+//                                                                                                                                             //                
+//                                               BEGIN LOWEST LOW  SINCE RECENT HIGH SCRIPT SECTION                                            //
+//Lookback length to obtain recent HIGHEST HIGH to begin script                                                                                //
+int high_lookback = (length_setting)                                                                                                           //
+//Define Variables for Recent HIGHEST HIGH Section                                                                                             //
+int high_h_offset = 0                                                                                                                          //
+float high_hh = high                                                                                                                           //
+int high_l_offset = 0                                                                                                                          //
+float high_ll = low                                                                                                                            //
+//Find Recent Highest High within the lookback range                                                                                           //
+for i = 1 to high_lookback - 1                                                                                                                 //
+    if high[i] > high_hh                                                                                                                       //                                                      
+        high_hh := high[i]                                                                                                                     //
+        high_h_offset := i                                                                                                                     //
+//Find Lowest Low since the Recent High within Lookback Range                                                                                  //
+for j = 1 to high_h_offset                                                                                                                     //
+    if low[j] < high_ll                                                                                                                        //
+        high_ll := low[j]                                                                                                                      //
+        high_l_offset := j                                                                                                                     // 
+//END LOW SINCE RECENT HIGH PORTION                                                                                                            //
+//                                                                                                                                             //
+//                                   FIND HIGHEST HIGH SINCE RECENT LOWEST LOW WITHIN THE DEFINED LOOKBACK PERIOD                              //
+//                                                                                                                                             //
+//BEGIN HIGH SINCE RECENT LOW                                                                                                                  //
+//Lookback length to obtain recent LOWEST LOW to begin script section                                                                          //                                                                                       
+int low_lookback = (length_setting) / lookback_multiplier                                                                                      //
+//DEFINE VARIABLES FOR RECENT LOWEST LOW SECTION                                                                                               //
+int low_h_offset = 0                                                                                                                           //
+float low_hh = high                                                                                                                            //
+int low_l_offset = 0                                                                                                                           //
+float low_ll = low                                                                                                                             //
+//Find Recent Lowest Low within the lookback range                                                                                             //
+for low_i = 1 to low_lookback -1 //low_h_offset                                                                                                //
+    if low[low_i] < low_ll                                                                                                                     //
+        low_ll := low[low_i]                                                                                                                   //
+        low_l_offset := low_i                                                                                                                  //
+//Find Highest High since the Recent Low within Lookback Range                                                                                 //
+for low_j = 1 to low_l_offset //low_lookback - 1                                                                                               //
+    if high[low_j] > low_hh                                                                                                                    //
+        low_hh := high[low_j]                                                                                                                  //
+        low_h_offset := low_j                                                                                                                  //
+//                                                             LABELS AND LINES BEGIN                                                          //
+//Define Variables for Future Labels, Plots, and Lines                                                                                         //
+High_Breach = ta.crossover(high, high_hh[1])                                                                                                   //
+Low_Breach = ta.crossunder(low, high_ll[1])                                                                                                    //
+long_equal_highs = (high_hh == low_hh)                                                                                                         //
+long_equal_lows = (high_ll == low_ll)                                                                                                          //
+high_Signal = long_equal_highs ? High_Breach : na                                                                                              //
+Short_Signal = long_equal_lows ? Low_Breach : na                                                                                               //
+//BEGIN Lowest Low since Recent Highest High Plots, Lines and Lables                                                                           //
+//                                                                                                                                             //
+var label high_hh_lab = na                                                                                                                     //
+var line high_hh_line = na                                                                                                                     //
+var label high_ll_lab = na                                                                                                                     //
+var line high_ll_line = na                                                                                                                     //
+//                                                                                                                                             //       
+if plot_labels                                                                                                                                 //
+    high_hh_lab := label.new(                                                                                                                  //
+ x = bar_index - high_h_offset,                                                                                                                //
+ y = high_hh,                                                                                                                                  //
+ style = label.style_label_down,                                                                                                               //
+ color = long_equal_highs ? color.new(color.lime, 0)                                                                                         // 
+ : color.new(#FF0000, 0)                                                                                                                     // 
+ )                                                                                                                                             //
+label.delete(high_hh_lab[1])                                                                                                                   //
+if plot_labels                                                                                                                                 //
+    high_ll_lab := label.new(                                                                                                                  //
+ x = bar_index - high_l_offset,                                                                                                                //
+ y = high_ll,                                                                                                                                  //
+ style = label.style_label_up,                                                                                                                 //
+ color = long_equal_lows ? color.new(#FF0000, 0)                                                                                             //
+ : color.new(color.red, 0)                                                                                                                   //
+ )                                                                                                                                              //
+label.delete(high_ll_lab[1])                                                                                                                   //
+//=============================================================================================================================================// 
+if plot_high_low_lines
+    high_hh_line := line.new(
+     bar_index[high_h_offset], 
+     high[high_h_offset], 
+     bar_index+5, 
+     high[high_h_offset], 
+     extend = extend_High_Low_lines
+     )
+    line.delete(high_hh_line[1])
+else
+    line.delete(high_hh_line)
+//=============================================================================================================================================//
+if plot_high_low_lines
+    high_ll_line := line.new(
+     bar_index[high_h_offset], 
+     low[high_l_offset], 
+     bar_index+5, 
+     low[high_l_offset],
+     extend = extend_High_Low_lines
+     )
+    line.delete(high_ll_line[1])
+else
+    line.delete(high_ll_line)
+//END Low Since High Plots, Lines and Labels
+//BEGIN High Since Low Plots, Lines and Labels
+var label low_hh_lab = na 
+var label low_ll_lab = na 
+var line low_hh_line = na 
+var line low_ll_line = na
+
+if plot_labels
+    low_hh_lab := label.new(
+ x = bar_index - low_h_offset, 
+ y = low_hh, 
+ style = label.style_label_down, 
+ color = long_equal_highs ? color.new(color.lime, 0) 
+ : color.new(#4a6741, 0)
+ )
+label.delete(low_hh_lab[1])
+if plot_labels
+    low_ll_lab := label.new(
+ x = bar_index - low_l_offset, 
+ y = low_ll, 
+ style = label.style_label_up, 
+ color = long_equal_lows ? color.new(#FF0000, 0) 
+ : color.new(color.lime, 0)
+ )
+label.delete(low_ll_lab[1])
+if plot_high_low_lines
+    low_hh_line := line.new(
+     bar_index[low_l_offset], 
+     high[low_h_offset], 
+     bar_index+5, 
+     high[low_h_offset], 
+     color = color.new(color.orange, 0),
+     extend = extend_High_Low_lines
+     )
+    line.delete(low_hh_line[1])
+else
+    line.delete(low_hh_line)
+
+if plot_high_low_lines
+    low_ll_line := line.new(
+     bar_index[low_l_offset], 
+     low[low_l_offset], 
+     bar_index+5, 
+     low[low_l_offset], 
+     color = color.new(color.orange, 0),
+     extend = extend_High_Low_lines
+     )
+    line.delete(low_ll_line[1])
+else 
+    line.delete(low_ll_line)
+//END High Since Low Plots, Lines and Labels
+//BEGIN Contraction Lines First
+bool show_previous_contractions = input.bool(defval = true, title = 'Show Previous Contractions')
+var line contract_high_hh_line = na
+var line contract_high_ll_line = na
+var line contract_high_ll_straightline = na 
+var line contract_high_hh_straightline = na 
+if plot_contraction_lines and not long_equal_highs and not long_equal_lows //and show_previous_contractions
+    contract_high_hh_straightline:= line.new(bar_index[low_l_offset], high[low_h_offset], bar_index + 20, high[low_h_offset], color = color.new(color.yellow, 0), width = 2)
+    line.delete(contract_high_hh_straightline[1])
+else 
+    line.delete(contract_high_hh_straightline)
+
+if plot_contraction_lines and not long_equal_highs and not long_equal_lows //and show_previous_contractions
+    contract_high_ll_straightline:= line.new(bar_index[low_l_offset], low[low_l_offset], bar_index + 20, low[low_l_offset], color = color.new(color.yellow, 0), width = 2)
+    line.delete(contract_high_ll_straightline[1])
+else
+    line.delete(contract_high_ll_straightline)
+if plot_contraction_lines and not long_equal_highs and not long_equal_lows
+    contract_high_hh_line := line.new(
+     bar_index[high_h_offset], 
+     high[high_h_offset], 
+     bar_index[low_h_offset], 
+     high[low_h_offset], 
+     extend = extend_contraction_lines
+     )
+    line.delete(contract_high_hh_line[1])
+else
+    line.delete(contract_high_hh_line)
+if plot_contraction_lines and not long_equal_highs and not long_equal_lows
+    contract_high_ll_line := line.new(
+     bar_index[high_l_offset], 
+     low[high_l_offset], 
+     bar_index[low_l_offset], 
+     low[low_l_offset], 
+     extend = extend_contraction_lines
+     )
+    line.delete(contract_high_ll_line[1])
+else
+    line.delete(contract_high_ll_line)
+//END Contraction Lines First
+//BEGIN Find MidPoint (Value Line)
+var float middleBody = na
+var line midline = na
+if plot_contraction_lines and not long_equal_highs and not long_equal_lows
+    middleBody := (low_hh + low_ll) / 2 //(((high + high[1]) / 2) + ((low + low[1]) / 2)) / 2 //was (open + close) / 2 or (high + low) / 2
+    midline := line.new(
+     bar_index[high_h_offset], 
+     middleBody, 
+     bar_index+200, 
+     middleBody, 
+     width = 2) //, extend=extend.right)
+    line.delete(midline[1])
+    
+else 
+
+    line.delete(midline)
+//
+//End Find Midpoint (Value Line)
+alertcondition(high_Signal, title = 'Long Signal', message = 'High Breach Detected')
+alertcondition(Short_Signal, title = 'Short Signal', message = 'Low Breach Detected')
+
+

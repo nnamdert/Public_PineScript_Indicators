@@ -1,0 +1,105 @@
+//@version=5
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nnamdert
+indicator('Custom TDI Candles - Traders Dynamic Index by nnamdert', shorttitle='TDI Candles', overlay = true) //, scale = scale.left)
+bearlinecount = input.int(2, title = 'Number of Bearish Reversal Lines to Show')
+bulllinecount = input.int(2, title = 'Number of Bullish Reversal Lines to Show')
+rsiPeriod = input.int(21, minval=1, title='RSI Period')
+bandLength = input.int(34, minval=1, title='Band Length')
+lengthrsipl = input.int(2, minval=0, title='Fast MA on RSI')
+lengthtradesl = input.int(7, minval=1, title='Slow MA on RSI')
+oversold_level = input.int(40, title = 'Oversold Level')
+overbought_level = input.int(60, title = 'Overbought Level')
+
+src = close  // Source of Calculations (Close of Bar)
+r = ta.rsi(src, rsiPeriod)  // RSI of Close
+ma = ta.sma(r, bandLength)  // Moving Average of RSI [current]
+offs = 1.6185 * ta.stdev(r, bandLength)  // Offset
+up = ma + offs  // Upper Bands
+dn = ma - offs  // Lower Bands
+oversold_condition = dn < oversold_level
+overbought_condition = up > overbought_level
+mid = (up + dn) / 2  // Average of Upper and Lower Bands
+fastMA = ta.sma(r, lengthrsipl)  // Moving Average of RSI 2 bars back
+slowMA = ta.sma(r, lengthtradesl)  // Moving Average of RSI 7 bars back
+overbought = (fastMA > slowMA) and (slowMA > mid) and (fastMA > mid) and (fastMA > up)
+bullish = (fastMA > slowMA) and (slowMA > mid) and (fastMA > mid) and not overbought
+neutralbull = (fastMA > slowMA) and (slowMA < mid) and (fastMA < mid)
+strongbullish = overbought_condition and overbought
+oversold = (fastMA < slowMA) and (slowMA < mid) and (fastMA < mid) and (fastMA < dn)
+bearish = (fastMA < slowMA) and (slowMA < mid) and (fastMA < mid) and not oversold
+strongbearish = oversold_condition and oversold
+neutralbear = (fastMA < slowMA) and (slowMA > mid) and (fastMA > mid)
+//==============================================BEGIN OVERLAY IS TRUE PLOTS===========================================================// 
+barcolor(color = strongbearish ? color.new(#fd4bd1, 0) : na)// color.new(#FF0000, 0) : na)
+barcolor(color = bearish ? color.new(#FF0000, 0) : na)
+barcolor(color = neutralbear and not bearish ? color.new(color.maroon, 0) : na)
+barcolor(color = strongbullish ? color.new(color.blue, 0) : na)
+barcolor(color = bullish ? color.new(color.lime, 0) : na)
+barcolor(color = neutralbull and not bullish ? color.new(color.green, 0) : na)
+//debug//plotshape(strongbearish and bearish[1] ? low : na, style = shape.triangledown, location = location.belowbar, text = 'OS', textcolor = color.yellow, color = color.black)
+//debug//plotshape(strongbullish and bullish[1] ? high : na, style = shape.triangleup, location = location.abovebar, text = 'OB', textcolor = color.yellow, color = color.black)
+
+//===============================================================================================================================//
+//                                                        ARRAY LINES                                                            //
+//===============================================================================================================================//
+//USER INPUTS
+line_width_settings = input.int(                                                                                            
+ defval = 2,                                                                                                                    
+ title = 'Set Value Line Width',                                                                                                
+ group = 'Line Settings',                                                                                                       
+ tooltip = 'Use this option to set the width of the Line (default is 2, max is 8)',                  
+ minval = 1,                                                                                                                    
+ maxval = 8                                                                                                                     
+ )                                                                                                                              
+line_right_length_settings = input.int(                                                                                           
+ defval = 60,                                                                                                                  
+ title = 'Set Value Line Length',                                                                                               
+ group = 'Line Settings',                                                                                                       
+ tooltip = 'Use this option to set the right length of the Line (default is 60, max is 60)',              
+ minval = 1,                                                                                                                    
+ maxval = 60                                                                                                                   
+ )               
+line_left_length_settings = input.int(                                                                                           
+ defval = -1,                                                                                                                  
+ title = 'Set Value Line Length',                                                                                               
+ group = 'Line Settings',                                                                                                       
+ tooltip = 'Use this option to set the left length of the Line (default is -20, max is 1)',              
+ minval = -20,                                                                                                                    
+ maxval = 1                                                                                                                   
+ ) 
+//OVERSOLD LINE
+var line [] oversold_line_array = array.new_line()
+var line oversold_line = na
+if strongbearish
+    oversold_line := line.new(bar_index+line_left_length_settings, low, bar_index+line_right_length_settings, low, color = color.new(#fd4bd1, 0), width = line_width_settings)
+    array.push(oversold_line_array, oversold_line)
+
+    if array.size(oversold_line_array) > bulllinecount
+        line.delete(array.shift(oversold_line_array))
+//OVERBOUGHT LINE
+var line [] overbought_line_array = array.new_line()
+var line overbought_line = na
+if strongbullish
+    overbought_line := line.new(bar_index+line_left_length_settings, high, bar_index+line_right_length_settings, high, color = color.new(color.blue, 0), width = line_width_settings)
+    array.push(overbought_line_array, overbought_line)
+
+    if array.size(overbought_line_array) > bearlinecount
+        line.delete(array.shift(overbought_line_array))
+
+//=============================================END OVERLAY IS TRUE PLOTS===========================================================//
+//==============================================OVERLAY IS FALSE PLOTS=============================================================//
+//hline(20)  // ExtremelyOversold
+//hline(30)  // Oversold
+//hline(50)  // Midline
+//hline(70)  // Overbought
+//hline(80)  // ExtremelyOverbought
+
+//upl = plot(up, 'Upper Band', color=color.new(#3286c3, 0), linewidth=2)  // Upper Band
+//dnl = plot(dn, 'Lower Band', color=color.new(#3286c3, 0), linewidth=2)  // Lower Band
+//midl = plot(mid, 'Middle of Bands', color=color.new(color.orange, 0), linewidth=2)  // Middle of Bands
+
+//slow_ma_plot = plot(slowMA, 'Slow MA', color= neutralbull ? color.yellow : bullish ? color.lime : color.new(color.red, 0), linewidth=2)  // Plot Slow MA
+//fast_ma_plot = plot(fastMA, 'Fast MA', color= bullish ? color.lime : color.new(color.green, 0), linewidth=1)  // Plot Fast MA
+
+
